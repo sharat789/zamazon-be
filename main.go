@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/sharat789/zamazon-be/configs"
-	api "github.com/sharat789/zamazon-be/internal/api/rest"
+	api "github.com/sharat789/zamazon-be/internal/api"
 	"log"
 )
 
