@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"github.com/sharat789/zamazon-be/internal/domain"
 	"github.com/sharat789/zamazon-be/internal/dto"
 	"log"
@@ -17,8 +18,12 @@ func (s UserService) findUserByEmail(email string) (*domain.User, error) {
 	return nil, nil
 }
 
-func (s UserService) Login(input any) (string, error) {
-	return "", nil
+func (s UserService) Login(input dto.UserLogin) (string, error) {
+	log.Println(input)
+	if input.Email == "admin" && input.Password == "admin" {
+		return "LoginToken", nil
+	}
+	return "", errors.New("login failed, wrong credentials")
 }
 
 func (s UserService) GetVerificationCode(e domain.User) (int, error) {
