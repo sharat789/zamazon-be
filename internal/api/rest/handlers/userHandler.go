@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/sharat789/zamazon-be/internal/api/rest"
 	"github.com/sharat789/zamazon-be/internal/dto"
+	"github.com/sharat789/zamazon-be/internal/repository"
 	"github.com/sharat789/zamazon-be/internal/service"
 	"net/http"
 )
@@ -14,7 +15,9 @@ type UserHandler struct {
 
 func SetupUserRoutes(rh *rest.RestHandler) {
 	app := rh.App
-	svc := service.UserService{}
+	svc := service.UserService{
+		Repo: repository.NewUserRepository(rh.DB),
+	}
 	handler := UserHandler{
 		svc,
 	}
@@ -59,23 +62,24 @@ func (h *UserHandler) RegisterUser(ctx *fiber.Ctx) error {
 	})
 }
 func (h *UserHandler) Login(ctx *fiber.Ctx) error {
-	user := dto.UserLogin{}
-	err := ctx.BodyParser(&user)
+	loginInput := dto.UserLogin{}
+	err := ctx.BodyParser(&loginInput)
 
 	if err != nil {
 		return ctx.Status(http.StatusBadRequest).JSON(&fiber.Map{
 			"message": "Please provide valid inputs",
 		})
 	}
-	token, err := h.userService.Login(user)
+	token, err := h.userService.Login(loginInput.Email, loginInput.Password)
 
 	if err != nil {
-		return ctx.Status(http.StatusBadRequest).JSON(&fiber.Map{
+		return ctx.Status(http.StatusUnauthorized).JSON(&fiber.Map{
 			"message": err.Error(),
 		})
 	}
 	return ctx.Status(http.StatusOK).JSON(&fiber.Map{
-		"message": token,
+		"message": loginInput.Email,
+		"token":   token,
 	})
 }
 func (h *UserHandler) VerifyUser(ctx *fiber.Ctx) error {
