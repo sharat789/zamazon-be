@@ -42,7 +42,7 @@ func (r userRepository) FindUser(email string) (domain.User, error) {
 		return domain.User{}, errors.New("could not find user")
 	}
 
-	return domain.User{}, nil
+	return user, nil
 }
 
 func (r userRepository) FindUserByID(id uint) (domain.User, error) {

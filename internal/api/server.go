@@ -6,6 +6,7 @@ import (
 	"github.com/sharat789/zamazon-be/internal/api/rest"
 	"github.com/sharat789/zamazon-be/internal/api/rest/handlers"
 	"github.com/sharat789/zamazon-be/internal/domain"
+	"github.com/sharat789/zamazon-be/internal/helper"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
@@ -22,9 +23,12 @@ func StartServer(cfg configs.AppConfig) {
 
 	log.Println("db connected...")
 	db.AutoMigrate(&domain.User{})
+
+	auth := helper.Auth{}
 	rh := &rest.RestHandler{
 		app,
 		db,
+		auth,
 	}
 
 	SetupRoutes(rh)

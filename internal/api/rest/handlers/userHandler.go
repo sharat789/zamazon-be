@@ -17,28 +17,31 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	app := rh.App
 	svc := service.UserService{
 		Repo: repository.NewUserRepository(rh.DB),
+		Auth: rh.Auth,
 	}
 	handler := UserHandler{
 		svc,
 	}
+	publicRoutes := app.Group("/users")
 	//public endpoints
-	app.Post("/registerUser", handler.RegisterUser)
-	app.Post("/login", handler.Login)
+	publicRoutes.Post("/registerUser", handler.RegisterUser)
+	publicRoutes.Post("/login", handler.Login)
 
+	privateRoutes := publicRoutes.Group("/", rh.Auth.AuthorizeUser)
 	//private endpoints
-	app.Post("/verifyUser", handler.VerifyUser)
-	app.Get("/verify", handler.GetVerificationCode)
+	privateRoutes.Post("/verifyUser", handler.VerifyUser)
+	privateRoutes.Get("/verify", handler.GetVerificationCode)
 
-	app.Post("/userProfile", handler.CreateUserProfile)
-	app.Get("/userProfile", handler.GetUserProfile)
+	privateRoutes.Post("/userProfile", handler.CreateUserProfile)
+	privateRoutes.Get("/userProfile", handler.GetUserProfile)
 
-	app.Post("/cart", handler.CreateCart)
-	app.Get("/cart", handler.GetCart)
+	privateRoutes.Post("/cart", handler.CreateCart)
+	privateRoutes.Get("/cart", handler.GetCart)
 
-	app.Get("/order", handler.GetOrders)
-	app.Get("/order/:id", handler.GetOrderByID)
+	privateRoutes.Get("/order", handler.GetOrders)
+	privateRoutes.Get("/order/:id", handler.GetOrderByID)
 
-	app.Post("become-seller", handler.becomeSeller)
+	privateRoutes.Post("become-seller", handler.becomeSeller)
 }
 func (h *UserHandler) RegisterUser(ctx *fiber.Ctx) error {
 	user := dto.UserSignup{}
@@ -58,7 +61,8 @@ func (h *UserHandler) RegisterUser(ctx *fiber.Ctx) error {
 	}
 
 	return ctx.Status(http.StatusOK).JSON(&fiber.Map{
-		"message": token,
+		"message": user.Email,
+		"token":   token,
 	})
 }
 func (h *UserHandler) Login(ctx *fiber.Ctx) error {

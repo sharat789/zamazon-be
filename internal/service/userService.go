@@ -2,32 +2,40 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"github.com/sharat789/zamazon-be/internal/domain"
 	"github.com/sharat789/zamazon-be/internal/dto"
+	"github.com/sharat789/zamazon-be/internal/helper"
 	"github.com/sharat789/zamazon-be/internal/repository"
 	"log"
 )
 
 type UserService struct {
 	Repo repository.UserRepository
+	Auth helper.Auth
 }
 
 func (s UserService) UserSignup(input dto.UserSignup) (string, error) {
-	log.Println(input)
+	hashPassword, err := s.Auth.CreateHashPassword(input.Password)
+
+	if err != nil {
+		return "", err
+	}
 
 	user, err := s.Repo.CreateUser(domain.User{
 		Email:    input.Email,
-		Password: input.Password,
+		Password: hashPassword,
 		Phone:    input.Phone,
 	})
 
-	log.Println(user)
-	userInfo := fmt.Sprintf("Created user with email %s", user.Email)
-	return userInfo, err
+	if err != nil {
+		return "", err
+	}
+
+	return s.Auth.GenerateToken(user.ID, user.Email, user.UserType)
 }
 func (s UserService) findUserByEmail(email string) (*domain.User, error) {
 	user, err := s.Repo.FindUser(email)
+	log.Println(user)
 	return &user, err
 }
 
@@ -39,7 +47,13 @@ func (s UserService) Login(email string, password string) (string, error) {
 	if err != nil {
 		return "", errors.New("user does not exist with the provided email")
 	}
-	return user.Email, nil
+	log.Println(user.Password)
+	err = s.Auth.VerifyPassword(password, user.Password)
+
+	if err != nil {
+		return "", err
+	}
+	return s.Auth.GenerateToken(user.ID, user.Email, user.UserType)
 }
 
 func (s UserService) GetVerificationCode(e domain.User) (int, error) {
