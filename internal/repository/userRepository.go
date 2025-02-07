@@ -54,17 +54,18 @@ func (r userRepository) FindUserByID(id uint) (domain.User, error) {
 		return domain.User{}, errors.New("could not find user")
 	}
 
-	return domain.User{}, nil
+	return user, nil
 }
 
 func (r userRepository) UpdateUser(id uint, u domain.User) (domain.User, error) {
 	var user domain.User
 
-	err := r.db.Model(&user).Clauses(clause.Returning{}).Where("id=?").Updates(u).Error
+	err := r.db.Model(&user).Clauses(clause.Returning{}).Where("id=?", id).Updates(u).Error
 
 	if err != nil {
-		log.Printf("Could not update user with the id %d: %v", id, err)
-		return domain.User{}, errors.New("could not update user")
+		log.Printf("error on update %v", err)
+		return domain.User{}, errors.New("failed update user")
 	}
+
 	return user, nil
 }

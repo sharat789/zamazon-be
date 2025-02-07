@@ -7,6 +7,7 @@ import (
 	"github.com/sharat789/zamazon-be/internal/helper"
 	"github.com/sharat789/zamazon-be/internal/repository"
 	"log"
+	"time"
 )
 
 type UserService struct {
@@ -56,11 +57,60 @@ func (s UserService) Login(email string, password string) (string, error) {
 	return s.Auth.GenerateToken(user.ID, user.Email, user.UserType)
 }
 
+func (s UserService) isVerifiedUser(id uint) bool {
+	currentUser, err := s.Repo.FindUserByID(id)
+
+	return err == nil && currentUser.IsVerified
+}
 func (s UserService) GetVerificationCode(e domain.User) (int, error) {
-	return 0, nil
+	if s.isVerifiedUser(e.ID) {
+		return 0, errors.New("user already verified")
+	}
+
+	code, err := s.Auth.GenerateCode()
+	if err != nil {
+		return 0, err
+	}
+
+	user := domain.User{
+		Expiry:           time.Now().Add(30 * time.Minute),
+		VerificationCode: code,
+	}
+	_, err = s.Repo.UpdateUser(e.ID, user)
+
+	if err != nil {
+		return 0, errors.New("unable to update verification code")
+	}
+	return code, nil
 }
 
-func (s UserService) VerifyCode(verificationCode int) error {
+func (s UserService) VerifyCode(id uint, verificationCode int) error {
+	if s.isVerifiedUser(id) {
+		log.Println("is verified")
+		return errors.New("user already verified")
+	}
+	user, err := s.Repo.FindUserByID(id)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	if user.VerificationCode != verificationCode {
+		return errors.New("verification code doesn't match")
+	}
+
+	if time.Now().After(user.Expiry) {
+		return errors.New("verification code expired")
+	}
+
+	updatedUser := domain.User{
+		IsVerified: true,
+	}
+
+	_, err = s.Repo.UpdateUser(id, updatedUser)
+
+	if err != nil {
+		return errors.New("unable to verify user")
+	}
 	return nil
 }
 

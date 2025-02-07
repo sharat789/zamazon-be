@@ -7,7 +7,6 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/sharat789/zamazon-be/internal/domain"
 	"golang.org/x/crypto/bcrypt"
-	"log"
 	"strings"
 	"time"
 )
@@ -81,7 +80,6 @@ func (a Auth) VerifyToken(token string) (domain.User, error) {
 	}
 
 	tokenString := tokenArray[1]
-	log.Println(tokenString)
 
 	t, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -115,7 +113,7 @@ func (a Auth) VerifyToken(token string) (domain.User, error) {
 
 func (a Auth) AuthorizeUser(ctx *fiber.Ctx) error {
 	authHeader := ctx.Get("Authorization")
-	log.Println(authHeader)
+
 	user, err := a.VerifyToken(authHeader)
 	if err == nil && user.ID > 0 {
 		ctx.Locals("user", user)
@@ -131,4 +129,8 @@ func (a Auth) AuthorizeUser(ctx *fiber.Ctx) error {
 func (a Auth) GetCurrentUser(ctx *fiber.Ctx) domain.User {
 	user := ctx.Locals("user")
 	return user.(domain.User)
+}
+
+func (a Auth) GenerateCode() (int, error) {
+	return GenerateRandom(8)
 }

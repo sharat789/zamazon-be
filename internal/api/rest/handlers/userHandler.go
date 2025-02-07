@@ -6,6 +6,7 @@ import (
 	"github.com/sharat789/zamazon-be/internal/dto"
 	"github.com/sharat789/zamazon-be/internal/repository"
 	"github.com/sharat789/zamazon-be/internal/service"
+	"log"
 	"net/http"
 )
 
@@ -87,13 +88,43 @@ func (h *UserHandler) Login(ctx *fiber.Ctx) error {
 	})
 }
 func (h *UserHandler) VerifyUser(ctx *fiber.Ctx) error {
+	user := h.userService.Auth.GetCurrentUser(ctx)
+
+	var req dto.VerificationCodeInput
+
+	if err := ctx.BodyParser(&req); err != nil {
+		return ctx.Status(http.StatusBadRequest).JSON(&fiber.Map{
+			"message": "invalid input",
+		})
+	}
+
+	err := h.userService.VerifyCode(user.ID, req.Code)
+
+	if err != nil {
+		log.Printf("%v", err)
+		return ctx.Status(http.StatusBadRequest).JSON(&fiber.Map{
+			"message": err.Error(),
+		})
+	}
 	return ctx.Status(http.StatusOK).JSON(&fiber.Map{
-		"message": "Verify user",
+		"message": "verified successfully",
 	})
 }
 func (h *UserHandler) GetVerificationCode(ctx *fiber.Ctx) error {
+	user := h.userService.Auth.GetCurrentUser(ctx)
+
+	code, err := h.userService.GetVerificationCode(user)
+
+	if err != nil {
+		return ctx.Status(http.StatusInternalServerError).JSON(&fiber.Map{
+			"message": "unable to generate verification code",
+			"error":   err.Error(),
+		})
+	}
+
 	return ctx.Status(http.StatusOK).JSON(&fiber.Map{
 		"message": "Get verification code",
+		"data":    code,
 	})
 }
 func (h *UserHandler) GetUserProfile(ctx *fiber.Ctx) error {
