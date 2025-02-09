@@ -2,6 +2,11 @@ package domain
 
 import "time"
 
+const (
+	SELLER = "seller"
+	BUYER  = "buyer"
+)
+
 type User struct {
 	ID               uint      `json:"id" gorm:"PrimaryKey"`
 	FName            string    `json:"f_name"`
