@@ -3,9 +3,10 @@ package handlers
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/sharat789/zamazon-be/internal/api/rest"
+	"github.com/sharat789/zamazon-be/internal/dto"
 	"github.com/sharat789/zamazon-be/internal/repository"
 	"github.com/sharat789/zamazon-be/internal/service"
-	"log"
+	"strconv"
 )
 
 type CatalogHandler struct {
@@ -21,12 +22,11 @@ func SetupCatalogRoutes(rh *rest.RestHandler) {
 	handler := CatalogHandler{
 		svc,
 	}
-	//publicRoutes := app.Group("/users")
 	//public endpoints for buyers
-	app.Get("/products")
-	app.Get("/products/:id")
-	app.Get("/categories")
-	app.Get("/categories/:id")
+	app.Get("/products", handler.GetProducts)
+	app.Get("/products/:id", handler.GetProductByID)
+	app.Get("/categories", handler.GetCategories)
+	app.Get("/categories/:id", handler.GetCategoryByID)
 
 	//private endpoints
 	sellerRoutes := app.Group("/seller", rh.Auth.AuthorizeSeller)
@@ -43,19 +43,70 @@ func SetupCatalogRoutes(rh *rest.RestHandler) {
 
 }
 
-func (h CatalogHandler) CreateCategories(ctx *fiber.Ctx) error {
-	user := h.userService.Auth.GetCurrentUser(ctx)
+func (h CatalogHandler) GetCategories(ctx *fiber.Ctx) error {
+	categories, err := h.userService.GetCategories()
 
-	log.Printf("current user %v", user)
+	if err != nil {
+		return rest.ErrorResponse(ctx, 404, err)
+	}
+
+	return rest.SuccessResponse(ctx, "categories", categories)
+}
+
+func (h CatalogHandler) GetCategoryByID(ctx *fiber.Ctx) error {
+	id, _ := strconv.Atoi(ctx.Params("id"))
+
+	category, err := h.userService.GetCategory(uint(id))
+
+	if err != nil {
+		return rest.ErrorResponse(ctx, 404, err)
+	}
+	return rest.SuccessResponse(ctx, "category", category)
+}
+
+func (h CatalogHandler) CreateCategories(ctx *fiber.Ctx) error {
+	req := dto.CreateCategoryRequest{}
+
+	err := ctx.BodyParser(&req)
+
+	if err != nil {
+		return rest.BadRequestErrorResponse(ctx, "category request is invalid")
+	}
+
+	err = h.userService.CreateCategory(req)
+
+	if err != nil {
+		return rest.InternalErrorResponse(ctx, err)
+	}
 	return rest.SuccessResponse(ctx, "create category", nil)
 }
 
 func (h CatalogHandler) EditCategory(ctx *fiber.Ctx) error {
-	return rest.SuccessResponse(ctx, "edit category", nil)
+	req := dto.CreateCategoryRequest{}
+
+	err := ctx.BodyParser(&req)
+
+	if err != nil {
+		return rest.BadRequestErrorResponse(ctx, "update category request is invalid")
+	}
+
+	id, _ := strconv.Atoi(ctx.Params("id"))
+	updatedCategory, err := h.userService.EditCategory(uint(id), req)
+
+	if err != nil {
+		return rest.InternalErrorResponse(ctx, err)
+	}
+	return rest.SuccessResponse(ctx, "create category", updatedCategory)
 }
 
 func (h CatalogHandler) DeleteCategory(ctx *fiber.Ctx) error {
-	return rest.SuccessResponse(ctx, "delete category", nil)
+	id, _ := strconv.Atoi(ctx.Params("id"))
+	err := h.userService.DeleteCategory(uint(id))
+
+	if err != nil {
+		return rest.InternalErrorResponse(ctx, err)
+	}
+	return rest.SuccessResponse(ctx, "delete category success", nil)
 }
 
 func (h CatalogHandler) CreateProducts(ctx *fiber.Ctx) error {
