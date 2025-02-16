@@ -75,3 +75,118 @@ func (s CatalogService) GetCategories() ([]*domain.Category, error) {
 
 	return categories, nil
 }
+
+func (s CatalogService) CreateProduct(input dto.CreateProductRequest, user domain.User) error {
+
+	err := s.Repo.CreateProduct(&domain.Product{
+		Name:        input.Name,
+		Description: input.Description,
+		Price:       input.Price,
+		CategoryID:  input.CategoryID,
+		UserID:      user.ID,
+		ImageURL:    input.ImageURL,
+		Stock:       uint(input.Stock),
+	})
+	return err
+}
+
+func (s CatalogService) EditProduct(id uint, input dto.CreateProductRequest, user domain.User) (*domain.Product, error) {
+	existingProd, err := s.Repo.FindProductByID(id)
+
+	if err != nil {
+		return nil, errors.New("product does not exist")
+	}
+
+	// verify ownership
+	if existingProd.UserID != user.ID {
+		return nil, errors.New("product does not belong to the user")
+	}
+
+	if len(input.Name) > 0 {
+		existingProd.Name = input.Name
+	}
+	if len(input.Description) > 0 {
+		existingProd.Description = input.Description
+	}
+	if input.Price > 0 {
+		existingProd.Price = input.Price
+	}
+	if input.CategoryID > 0 {
+		existingProd.CategoryID = input.CategoryID
+	}
+	if len(input.ImageURL) > 0 {
+		existingProd.ImageURL = input.ImageURL
+	}
+	if input.Stock > 0 {
+		existingProd.Stock = uint(input.Stock)
+	}
+
+	updatedProd, err := s.Repo.EditProduct(existingProd)
+
+	return updatedProd, err
+}
+
+func (s CatalogService) DeleteProduct(id int) error {
+	deletedProduct, err := s.Repo.FindProductByID(uint(id))
+
+	if err != nil {
+		return errors.New("product does not exist for deletion")
+	}
+
+	err = s.Repo.DeleteProduct(deletedProduct)
+
+	if err != nil {
+		return errors.New("could not delete product")
+	}
+
+	return nil
+}
+
+func (s CatalogService) GetProductByID(id uint) (*domain.Product, error) {
+	product, err := s.Repo.FindProductByID(id)
+
+	if err != nil {
+		return nil, err
+	}
+	return product, nil
+
+}
+
+func (s CatalogService) GetProducts() ([]*domain.Product, error) {
+	products, err := s.Repo.FindProducts()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return products, nil
+}
+
+func (s CatalogService) GetSellerProducts(id uint) ([]*domain.Product, error) {
+	products, err := s.Repo.FindSellerProducts(id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return products, nil
+}
+
+func (s CatalogService) UpdateProductStock(e domain.Product) (*domain.Product, error) {
+	product, err := s.Repo.FindProductByID(e.ID)
+
+	if err != nil {
+		return nil, errors.New("product does not exist")
+	}
+
+	if product.UserID != e.UserID {
+		return nil, errors.New("product does not belong to the user")
+	}
+
+	product.Stock = e.Stock
+	editProduct, err := s.Repo.EditProduct(product)
+	if err != nil {
+		return nil, errors.New("could not update stock")
+	}
+	return editProduct, nil
+}

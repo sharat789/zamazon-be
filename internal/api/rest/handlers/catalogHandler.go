@@ -3,6 +3,7 @@ package handlers
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/sharat789/zamazon-be/internal/api/rest"
+	"github.com/sharat789/zamazon-be/internal/domain"
 	"github.com/sharat789/zamazon-be/internal/dto"
 	"github.com/sharat789/zamazon-be/internal/repository"
 	"github.com/sharat789/zamazon-be/internal/service"
@@ -110,25 +111,86 @@ func (h CatalogHandler) DeleteCategory(ctx *fiber.Ctx) error {
 }
 
 func (h CatalogHandler) CreateProducts(ctx *fiber.Ctx) error {
+	req := dto.CreateProductRequest{}
+	err := ctx.BodyParser(&req)
+
+	if err != nil {
+		return rest.BadRequestErrorResponse(ctx, "product request is invalid")
+	}
+
+	user := h.userService.Auth.GetCurrentUser(ctx)
+	err = h.userService.CreateProduct(req, user)
+
+	if err != nil {
+		return rest.InternalErrorResponse(ctx, err)
+	}
+
 	return rest.SuccessResponse(ctx, "create product", nil)
 }
 
 func (h CatalogHandler) EditProduct(ctx *fiber.Ctx) error {
-	return rest.SuccessResponse(ctx, "edit product", nil)
+	id, _ := strconv.Atoi(ctx.Params("id"))
+	req := dto.CreateProductRequest{}
+	err := ctx.BodyParser(&req)
+
+	if err != nil {
+		return rest.BadRequestErrorResponse(ctx, "product request is invalid")
+	}
+	user := h.userService.Auth.GetCurrentUser(ctx)
+	product, err := h.userService.EditProduct(uint(id), req, user)
+
+	if err != nil {
+		return rest.InternalErrorResponse(ctx, err)
+	}
+	return rest.SuccessResponse(ctx, "edit product", product)
 }
 
 func (h CatalogHandler) DeleteProduct(ctx *fiber.Ctx) error {
-	return rest.SuccessResponse(ctx, "delete product", nil)
+	id, _ := strconv.Atoi(ctx.Params("id"))
+	err := h.userService.DeleteProduct(id)
+	return rest.SuccessResponse(ctx, "delete product", err)
 }
 
 func (h CatalogHandler) UpdateStock(ctx *fiber.Ctx) error {
-	return rest.SuccessResponse(ctx, "update stock", nil)
+	id, _ := strconv.Atoi(ctx.Params("id"))
+	req := dto.UpdateStockRequest{}
+	err := ctx.BodyParser(&req)
+
+	if err != nil {
+		return rest.BadRequestErrorResponse(ctx, "update stock request is invalid")
+	}
+
+	user := h.userService.Auth.GetCurrentUser(ctx)
+	product := domain.Product{
+		ID:     uint(id),
+		Stock:  uint(req.Stock),
+		UserID: user.ID,
+	}
+
+	updatedProduct, err := h.userService.UpdateProductStock(product)
+
+	return rest.SuccessResponse(ctx, "update stock", updatedProduct)
 }
 
 func (h CatalogHandler) GetProductByID(ctx *fiber.Ctx) error {
-	return rest.SuccessResponse(ctx, "get product by id", nil)
+
+	id, _ := strconv.Atoi(ctx.Params("id"))
+
+	product, err := h.userService.GetProductByID(uint(id))
+
+	if err != nil {
+		return rest.ErrorResponse(ctx, 404, err)
+	}
+	return rest.SuccessResponse(ctx, "get product by id", product)
 }
 
 func (h CatalogHandler) GetProducts(ctx *fiber.Ctx) error {
-	return rest.SuccessResponse(ctx, "get products", nil)
+
+	products, err := h.userService.GetProducts()
+
+	if err != nil {
+		return rest.ErrorResponse(ctx, 404, err)
+	}
+
+	return rest.SuccessResponse(ctx, "get products", products)
 }
