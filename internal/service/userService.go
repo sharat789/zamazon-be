@@ -11,8 +11,9 @@ import (
 )
 
 type UserService struct {
-	Repo repository.UserRepository
-	Auth helper.Auth
+	Repo        repository.UserRepository
+	CatalogRepo repository.CatalogRepository
+	Auth        helper.Auth
 }
 
 func (s UserService) UserSignup(input dto.UserSignup) (string, error) {
@@ -114,15 +115,82 @@ func (s UserService) VerifyCode(id uint, verificationCode int) error {
 	return nil
 }
 
-func (s UserService) CreateUserProfile(id uint, input any) error {
+func (s UserService) CreateUserProfile(id uint, input dto.ProfileInput) error {
+	user, err := s.Repo.FindUserByID(id)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	if input.FirstName != "" {
+		user.FName = input.FirstName
+	}
+	if input.LastName != "" {
+		user.LName = input.LastName
+	}
+	_, err = s.Repo.UpdateUser(id, user)
+
+	if err != nil {
+		return err
+	}
+
+	address := domain.Address{
+		AddressLine1: input.AddressInput.AddressLine1,
+		AddressLine2: input.AddressInput.AddressLine2,
+		City:         input.AddressInput.City,
+		PostCode:     input.AddressInput.PostCode,
+		Country:      input.AddressInput.Country,
+		UserID:       id,
+	}
+
+	err = s.Repo.CreateProfile(address)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func (s UserService) GetUserProfile(id uint) (*domain.User, error) {
-	return nil, nil
+	user, err := s.Repo.FindUserByID(id)
+
+	if err != nil {
+		log.Printf("Error while fetching user profile %v", err)
+	}
+
+	return &user, nil
 }
 
-func (s UserService) UpdateProfile(id uint, input any) error {
+func (s UserService) UpdateProfile(id uint, input dto.ProfileInput) error {
+	user, err := s.Repo.FindUserByID(id)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	if input.FirstName != "" {
+		user.FName = input.FirstName
+	}
+	if input.LastName != "" {
+		user.LName = input.LastName
+	}
+	_, err = s.Repo.UpdateUser(id, user)
+
+	if err != nil {
+		return err
+	}
+
+	address := domain.Address{
+		AddressLine1: input.AddressInput.AddressLine1,
+		AddressLine2: input.AddressInput.AddressLine2,
+		City:         input.AddressInput.City,
+		PostCode:     input.AddressInput.PostCode,
+		Country:      input.AddressInput.Country,
+		UserID:       id,
+	}
+
+	err = s.Repo.UpdateProfile(address)
+
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -155,22 +223,125 @@ func (s UserService) BecomeSeller(id uint, input dto.SellerInput) (string, error
 	return token, err
 }
 
-func (s UserService) FindCart(id uint) ([]interface{}, error) {
-	return nil, nil
+func (s UserService) FindCart(id uint) ([]domain.Cart, error) {
+	cartItems, err := s.Repo.FindCartItems(id)
+
+	if err != nil {
+		log.Printf("Error while fetching cart %v", err)
+	}
+
+	return cartItems, nil
 }
 
-func (s UserService) CreateCart(input any, u domain.User) ([]interface{}, error) {
-	return nil, nil
+func (s UserService) CreateCart(input dto.CreateCartRequest, u domain.User) ([]domain.Cart, error) {
+	// check if cart exists
+	cart, _ := s.Repo.FindCartItem(u.ID, input.ProductID)
+	if cart.ID != 0 {
+		if input.ProductID == 0 {
+			return nil, errors.New("product id is required")
+		}
+		if input.Qty < 1 {
+			err := s.Repo.DeleteCartById(cart.ID)
+			if err != nil {
+				log.Printf("Error while deleting cart %v", err)
+				return nil, errors.New("unable to delete cart")
+			}
+		} else {
+			cart.Qty = input.Qty
+			err := s.Repo.UpdateCartItem(cart)
+			if err != nil {
+				log.Printf("Error while updating cart %v", err)
+				return nil, errors.New("unable to update cart")
+			}
+		}
+
+	} else {
+		//check if product exists
+		product, err := s.CatalogRepo.FindProductByID(input.ProductID)
+		if err != nil {
+			return nil, errors.New("product not found")
+		}
+		err = s.Repo.CreateCart(domain.Cart{
+			UserID:    u.ID,
+			ProductID: input.ProductID,
+			Name:      product.Name,
+			ImageURL:  product.ImageURL,
+			SellerId:  product.UserID,
+			Price:     product.Price,
+			Qty:       input.Qty,
+		})
+		if err != nil {
+			log.Printf("Error while creating cart %v", err)
+			return nil, errors.New("unable to create cart")
+		}
+	}
+	return s.Repo.FindCartItems(u.ID)
 }
 
 func (s UserService) CreateOrder(u domain.User) (int, error) {
-	return 0, nil
+	cartItems, err := s.Repo.FindCartItems(u.ID)
+
+	if err != nil {
+		return 0, errors.New("unable to fetch cart items")
+	}
+
+	if len(cartItems) == 0 {
+		return 0, errors.New("cart is empty")
+	}
+
+	paymentId := "PAYMENT" + u.Email + time.Now().String()
+	txnId := "TXN" + u.Email + time.Now().String()
+	orderRef, _ := helper.GenerateRandom(8)
+
+	var amount float64
+	var orderItems []domain.OrderItem
+
+	for _, item := range cartItems {
+		amount += float64(item.Qty) * item.Price
+		orderItems = append(orderItems, domain.OrderItem{
+			ProductID: item.ProductID,
+			Name:      item.Name,
+			ImageURL:  item.ImageURL,
+			SellerId:  item.SellerId,
+			Price:     uint(item.Price),
+			Qty:       item.Qty,
+		})
+	}
+
+	order := domain.Order{
+		UserID:         u.ID,
+		PaymentId:      paymentId,
+		TransactionId:  txnId,
+		OrderRefNumber: uint(orderRef),
+		Amount:         amount,
+		Items:          orderItems,
+	}
+
+	err = s.Repo.CreateOrder(order)
+
+	if err != nil {
+		return 0, err
+	}
+
+	err = s.Repo.DeleteCartItems(u.ID)
+	log.Printf("Error while deleting cart items %v", err)
+
+	return orderRef, nil
 }
 
-func (s UserService) GetOrders(u domain.User) ([]interface{}, error) {
-	return nil, nil
+func (s UserService) GetOrders(u domain.User) ([]domain.Order, error) {
+	orders, err := s.Repo.FindOrders(u.ID)
+	if err != nil {
+		return nil, err
+	}
+	return orders, nil
 }
 
-func (s UserService) GetOrderByID(id uint, uid uint) (interface{}, error) {
-	return nil, nil
+func (s UserService) GetOrderByID(id uint, userId uint) (domain.Order, error) {
+	order, err := s.Repo.FindOrderByID(id, userId)
+
+	if err != nil {
+		return order, err
+	}
+	return order, nil
 }
