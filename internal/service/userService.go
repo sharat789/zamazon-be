@@ -282,20 +282,16 @@ func (s UserService) CreateCart(input dto.CreateCartRequest, u domain.User) ([]d
 	return s.Repo.FindCartItems(u.ID)
 }
 
-func (s UserService) CreateOrder(u domain.User) (string, error) {
-	cartItems, amount, err := s.FindCart(u.ID)
+func (s UserService) CreateOrder(userId uint, orderRef string, paymentId string, amount float64) error {
+	cartItems, _, err := s.FindCart(userId)
 
 	if err != nil {
-		return "", errors.New("unable to fetch cart items")
+		return errors.New("unable to fetch cart items")
 	}
 
 	if len(cartItems) == 0 {
-		return "", errors.New("cart is empty")
+		return errors.New("cart is empty")
 	}
-
-	paymentId := "PAYMENT" + u.Email + time.Now().String()
-	txnId := "TXN" + u.Email + time.Now().String()
-	orderRef, _ := helper.GenerateRandom(8)
 
 	var orderItems []domain.OrderItem
 
@@ -311,9 +307,8 @@ func (s UserService) CreateOrder(u domain.User) (string, error) {
 	}
 
 	order := domain.Order{
-		UserID:         u.ID,
+		UserID:         userId,
 		PaymentId:      paymentId,
-		TransactionId:  txnId,
 		OrderRefNumber: orderRef,
 		Amount:         amount,
 		Items:          orderItems,
@@ -322,13 +317,13 @@ func (s UserService) CreateOrder(u domain.User) (string, error) {
 	err = s.Repo.CreateOrder(order)
 
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	err = s.Repo.DeleteCartItems(u.ID)
+	err = s.Repo.DeleteCartItems(userId)
 	log.Printf("Error while deleting cart items %v", err)
 
-	return orderRef, nil
+	return err
 }
 
 func (s UserService) GetOrders(u domain.User) ([]domain.Order, error) {

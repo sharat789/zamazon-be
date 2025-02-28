@@ -9,12 +9,17 @@ import (
 type TransactionRepository interface {
 	CreatePayment(payment *domain.Payment) error
 	FindExistingPayment(userId uint) (*domain.Payment, error)
+	UpdatePayment(payment *domain.Payment) error
 	FindOrders(userId uint) ([]domain.OrderItem, error)
 	FindOrderById(orderId uint, userId uint) (dto.SellerOrderDetails, error)
 }
 
 type transactionRepository struct {
 	db *gorm.DB
+}
+
+func (t transactionRepository) UpdatePayment(payment *domain.Payment) error {
+	return t.db.Save(payment).Error
 }
 
 func (t transactionRepository) FindExistingPayment(userId uint) (*domain.Payment, error) {

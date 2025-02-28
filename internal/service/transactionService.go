@@ -5,7 +5,6 @@ import (
 	"github.com/sharat789/zamazon-be/internal/dto"
 	"github.com/sharat789/zamazon-be/internal/helper"
 	"github.com/sharat789/zamazon-be/internal/repository"
-	"github.com/stripe/stripe-go/v78"
 )
 
 type TransactionService struct {
@@ -33,17 +32,26 @@ func (s TransactionService) GetActivePayment(userId uint) (*domain.Payment, erro
 	return s.Repo.FindExistingPayment(userId)
 }
 
-func (s TransactionService) StoreCreatedPayment(userId uint, ps *stripe.CheckoutSession, amount float64, orderId string) error {
+func (s TransactionService) StoreCreatedPayment(input dto.CreatePaymentRequest) error {
 	payment := domain.Payment{
-		UserId:     userId,
-		Amount:     amount,
-		OrderId:    orderId,
-		Status:     string(domain.PaymentStatusInitial),
-		PaymentUrl: ps.URL,
-		PaymentId:  ps.ID,
+		UserId:    input.UserId,
+		Amount:    input.Amount,
+		OrderId:   input.OrderId,
+		Status:    string(domain.PaymentStatusInitial),
+		PaymentId: input.PaymentId,
 	}
 
 	return s.Repo.CreatePayment(&payment)
+}
+
+func (s TransactionService) UpdatePayment(userId uint, status string, paymentLog string) error {
+	p, err := s.GetActivePayment(userId)
+	if err != nil {
+		return err
+	}
+	p.Status = string(domain.PaymentStatus(status))
+	p.Response = paymentLog
+	return s.Repo.UpdatePayment(p)
 }
 func NewTransactionService(repo repository.TransactionRepository, auth helper.Auth) TransactionService {
 	return TransactionService{

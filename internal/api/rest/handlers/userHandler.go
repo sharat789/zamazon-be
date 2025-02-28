@@ -28,7 +28,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	}
 	publicRoutes := app.Group("/users")
 	//public endpoints
-	publicRoutes.Post("/ ", handler.RegisterUser)
+	publicRoutes.Post("/register", handler.RegisterUser)
 	publicRoutes.Post("/login", handler.Login)
 
 	privateRoutes := publicRoutes.Group("/", rh.Auth.AuthorizeUser)
@@ -43,7 +43,6 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	privateRoutes.Post("/cart", handler.AddToCart)
 	privateRoutes.Get("/cart", handler.GetCart)
 
-	privateRoutes.Post("/order", handler.CreateOrder)
 	privateRoutes.Get("/order", handler.GetOrders)
 	privateRoutes.Get("/order/:id", handler.GetOrderByID)
 
@@ -260,18 +259,5 @@ func (h *UserHandler) becomeSeller(ctx *fiber.Ctx) error {
 	return ctx.Status(http.StatusOK).JSON(&fiber.Map{
 		"message": "Become seller",
 		"token":   token,
-	})
-}
-
-func (h *UserHandler) CreateOrder(ctx *fiber.Ctx) error {
-	user := h.userService.Auth.GetCurrentUser(ctx)
-	orderRef, err := h.userService.CreateOrder(user)
-	if err != nil {
-		return rest.InternalErrorResponse(ctx, err)
-	}
-
-	return ctx.Status(http.StatusOK).JSON(&fiber.Map{
-		"message": "order created succesfully",
-		"order":   orderRef,
 	})
 }

@@ -46,6 +46,7 @@ func StartServer(cfg configs.AppConfig) {
 		db,
 		auth,
 		paymentClient,
+		cfg,
 	}
 
 	SetupRoutes(rh)
@@ -54,9 +55,10 @@ func StartServer(cfg configs.AppConfig) {
 
 func SetupRoutes(rh *rest.RestHandler) {
 	//user route handler
+	handlers.SetupCatalogRoutes(rh)
+
 	handlers.SetupUserRoutes(rh)
 	//transaction route handler
 	handlers.SetupTransactionRoutes(rh)
 	//catalog route handler
-	handlers.SetupCatalogRoutes(rh)
 }
