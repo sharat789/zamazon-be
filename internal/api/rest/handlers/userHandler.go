@@ -192,7 +192,7 @@ func (h *UserHandler) CreateUserProfile(ctx *fiber.Ctx) error {
 }
 func (h *UserHandler) GetCart(ctx *fiber.Ctx) error {
 	user := h.userService.Auth.GetCurrentUser(ctx)
-	cart, err := h.userService.FindCart(user.ID)
+	cart, _, err := h.userService.FindCart(user.ID)
 	if err != nil {
 		return rest.InternalErrorResponse(ctx, errors.New("unable to fetch cart"))
 	}

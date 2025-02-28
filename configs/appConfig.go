@@ -10,6 +10,9 @@ type AppConfig struct {
 	Port           string
 	DataSourceName string
 	AppSecret      string
+	StripeSecret   string
+	SuccessURL     string
+	CancelURL      string
 }
 
 func EnvSetup() (cfg AppConfig, err error) {
@@ -34,5 +37,8 @@ func EnvSetup() (cfg AppConfig, err error) {
 		return AppConfig{}, errors.New("app secret variable not found")
 	}
 
-	return AppConfig{Port: httpPort, DataSourceName: dsn, AppSecret: appSecret}, nil
+	return AppConfig{Port: httpPort, DataSourceName: dsn, AppSecret: appSecret,
+		StripeSecret: os.Getenv("STRIPE_API_KEY"),
+		SuccessURL:   os.Getenv("SUCCESS_URL"),
+		CancelURL:    os.Getenv("CANCEL_URL")}, nil
 }

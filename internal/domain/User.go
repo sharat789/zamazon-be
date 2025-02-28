@@ -14,7 +14,7 @@ type User struct {
 	Email            string    `json:"email" gorm:"index;unique;not null"`
 	Phone            string    `json:"phone"`
 	Password         string    `json:"password"`
-	VerificationCode int       `json:"verificationCode"`
+	VerificationCode string    `json:"verificationCode"`
 	Expiry           time.Time `json:"expiry"`
 	Address          Address   `json:"address"`
 	Payments         []Payment `json:"payment"`

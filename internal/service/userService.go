@@ -63,14 +63,14 @@ func (s UserService) isVerifiedUser(id uint) bool {
 
 	return err == nil && currentUser.IsVerified
 }
-func (s UserService) GetVerificationCode(e domain.User) (int, error) {
+func (s UserService) GetVerificationCode(e domain.User) (string, error) {
 	if s.isVerifiedUser(e.ID) {
-		return 0, errors.New("user already verified")
+		return "", errors.New("user already verified")
 	}
 
 	code, err := s.Auth.GenerateCode()
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	user := domain.User{
@@ -80,12 +80,12 @@ func (s UserService) GetVerificationCode(e domain.User) (int, error) {
 	_, err = s.Repo.UpdateUser(e.ID, user)
 
 	if err != nil {
-		return 0, errors.New("unable to update verification code")
+		return "", errors.New("unable to update verification code")
 	}
 	return code, nil
 }
 
-func (s UserService) VerifyCode(id uint, verificationCode int) error {
+func (s UserService) VerifyCode(id uint, verificationCode string) error {
 	if s.isVerifiedUser(id) {
 		log.Println("is verified")
 		return errors.New("user already verified")
@@ -223,14 +223,18 @@ func (s UserService) BecomeSeller(id uint, input dto.SellerInput) (string, error
 	return token, err
 }
 
-func (s UserService) FindCart(id uint) ([]domain.Cart, error) {
+func (s UserService) FindCart(id uint) ([]domain.Cart, float64, error) {
 	cartItems, err := s.Repo.FindCartItems(id)
 
 	if err != nil {
 		log.Printf("Error while fetching cart %v", err)
+		return nil, 0, errors.New("unable to fetch cart items")
 	}
-
-	return cartItems, nil
+	var totalAmount float64
+	for _, item := range cartItems {
+		totalAmount += float64(item.Qty) * item.Price
+	}
+	return cartItems, totalAmount, nil
 }
 
 func (s UserService) CreateCart(input dto.CreateCartRequest, u domain.User) ([]domain.Cart, error) {
@@ -278,26 +282,24 @@ func (s UserService) CreateCart(input dto.CreateCartRequest, u domain.User) ([]d
 	return s.Repo.FindCartItems(u.ID)
 }
 
-func (s UserService) CreateOrder(u domain.User) (int, error) {
-	cartItems, err := s.Repo.FindCartItems(u.ID)
+func (s UserService) CreateOrder(u domain.User) (string, error) {
+	cartItems, amount, err := s.FindCart(u.ID)
 
 	if err != nil {
-		return 0, errors.New("unable to fetch cart items")
+		return "", errors.New("unable to fetch cart items")
 	}
 
 	if len(cartItems) == 0 {
-		return 0, errors.New("cart is empty")
+		return "", errors.New("cart is empty")
 	}
 
 	paymentId := "PAYMENT" + u.Email + time.Now().String()
 	txnId := "TXN" + u.Email + time.Now().String()
 	orderRef, _ := helper.GenerateRandom(8)
 
-	var amount float64
 	var orderItems []domain.OrderItem
 
 	for _, item := range cartItems {
-		amount += float64(item.Qty) * item.Price
 		orderItems = append(orderItems, domain.OrderItem{
 			ProductID: item.ProductID,
 			Name:      item.Name,
@@ -312,7 +314,7 @@ func (s UserService) CreateOrder(u domain.User) (int, error) {
 		UserID:         u.ID,
 		PaymentId:      paymentId,
 		TransactionId:  txnId,
-		OrderRefNumber: uint(orderRef),
+		OrderRefNumber: orderRef,
 		Amount:         amount,
 		Items:          orderItems,
 	}
@@ -320,7 +322,7 @@ func (s UserService) CreateOrder(u domain.User) (int, error) {
 	err = s.Repo.CreateOrder(order)
 
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	err = s.Repo.DeleteCartItems(u.ID)

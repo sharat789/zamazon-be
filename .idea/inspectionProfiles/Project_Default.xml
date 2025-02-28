@@ -4,6 +4,7 @@
     <inspection_tool class="GoDfaErrorMayBeNotNil" enabled="true" level="WARNING" enabled_by_default="true">
       <methods>
         <method importPath="github.com/sharat789/zamazon-be/internal/repository" receiver="UserRepository" name="CreateUser" />
+        <method importPath="github.com/sharat789/zamazon-be/internal/service" receiver="TransactionService" name="GetActivePayment" />
       </methods>
     </inspection_tool>
   </profile>

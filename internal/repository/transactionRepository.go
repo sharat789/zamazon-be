@@ -8,6 +8,7 @@ import (
 
 type TransactionRepository interface {
 	CreatePayment(payment *domain.Payment) error
+	FindExistingPayment(userId uint) (*domain.Payment, error)
 	FindOrders(userId uint) ([]domain.OrderItem, error)
 	FindOrderById(orderId uint, userId uint) (dto.SellerOrderDetails, error)
 }
@@ -16,9 +17,14 @@ type transactionRepository struct {
 	db *gorm.DB
 }
 
+func (t transactionRepository) FindExistingPayment(userId uint) (*domain.Payment, error) {
+	var payment *domain.Payment
+	err := t.db.Where("user_id = ? AND status = ?", userId, "initial").Order("created_at desc").First(&payment).Error
+	return payment, err
+}
+
 func (t transactionRepository) CreatePayment(payment *domain.Payment) error {
-	//TODO implement me
-	panic("implement me")
+	return t.db.Create(payment).Error
 }
 
 func (t transactionRepository) FindOrders(userId uint) ([]domain.OrderItem, error) {

@@ -7,6 +7,7 @@ import (
 	"github.com/sharat789/zamazon-be/internal/api/rest/handlers"
 	"github.com/sharat789/zamazon-be/internal/domain"
 	"github.com/sharat789/zamazon-be/internal/helper"
+	"github.com/sharat789/zamazon-be/pkg/payment"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
@@ -39,10 +40,12 @@ func StartServer(cfg configs.AppConfig) {
 
 	log.Println("migration successful")
 	auth := helper.Auth{}
+	paymentClient := payment.NewPaymentClient(cfg.StripeSecret, cfg.SuccessURL, cfg.CancelURL)
 	rh := &rest.RestHandler{
 		app,
 		db,
 		auth,
+		paymentClient,
 	}
 
 	SetupRoutes(rh)
