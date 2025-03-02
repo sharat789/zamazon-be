@@ -112,8 +112,11 @@ func (h *TransactionHandler) VerifyPayment(ctx *fiber.Ctx) error {
 
 	paymentStatus := "failed"
 	if paymentResponse.Status == "succeeded" {
-
+		err = h.userService.CreateOrder(user.ID, activePayment.OrderId, activePayment.PaymentId, activePayment.Amount)
 		paymentStatus = "success"
+	}
+	if err != nil {
+		return rest.InternalErrorResponse(ctx, err)
 	}
 
 	err = h.transactionService.UpdatePayment(user.ID, paymentStatus, paymentLogs)

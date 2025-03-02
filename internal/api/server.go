@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/sharat789/zamazon-be/configs"
 	"github.com/sharat789/zamazon-be/internal/api/rest"
 	"github.com/sharat789/zamazon-be/internal/api/rest/handlers"
@@ -39,6 +40,14 @@ func StartServer(cfg configs.AppConfig) {
 	}
 
 	log.Println("migration successful")
+
+	c := cors.New(cors.Config{
+		AllowOrigins: "http://localhost:4200",
+		AllowHeaders: "Content-Type, Accept, Authorization",
+		AllowMethods: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+	})
+
+	app.Use(c)
 	auth := helper.Auth{}
 	paymentClient := payment.NewPaymentClient(cfg.StripeSecret, cfg.SuccessURL, cfg.CancelURL)
 	rh := &rest.RestHandler{
