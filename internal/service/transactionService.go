@@ -34,11 +34,12 @@ func (s TransactionService) GetActivePayment(userId uint) (*domain.Payment, erro
 
 func (s TransactionService) StoreCreatedPayment(input dto.CreatePaymentRequest) error {
 	payment := domain.Payment{
-		UserId:    input.UserId,
-		Amount:    input.Amount,
-		OrderId:   input.OrderId,
-		Status:    string(domain.PaymentStatusInitial),
-		PaymentId: input.PaymentId,
+		UserId:       input.UserId,
+		Amount:       input.Amount,
+		OrderId:      input.OrderId,
+		Status:       string(domain.PaymentStatusInitial),
+		PaymentId:    input.PaymentId,
+		ClientSecret: input.ClientSecret,
 	}
 
 	return s.Repo.CreatePayment(&payment)

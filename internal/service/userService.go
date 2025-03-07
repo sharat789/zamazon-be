@@ -282,6 +282,26 @@ func (s UserService) CreateCart(input dto.CreateCartRequest, u domain.User) ([]d
 	return s.Repo.FindCartItems(u.ID)
 }
 
+func (s UserService) UpdateProductQtyInCart(userID uint, productID uint, qty int) error {
+	cart, err := s.Repo.FindCartItem(userID, productID)
+	if err != nil {
+		return errors.New("cart item not found")
+	}
+	cart.Qty = uint(qty)
+	err = s.Repo.UpdateCartItem(cart)
+	if err != nil {
+		return errors.New("unable to update cart item")
+	}
+	return nil
+}
+
+func (s UserService) RemoveProductFromCart(userID uint, productID uint) error {
+	err := s.Repo.DeleteCartItem(userID, productID)
+	if err != nil {
+		return errors.New("unable to remove product from cart")
+	}
+	return nil
+}
 func (s UserService) CreateOrder(userId uint, orderRef string, paymentId string, amount float64) error {
 	cartItems, _, err := s.FindCart(userId)
 

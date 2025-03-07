@@ -42,7 +42,7 @@ func StartServer(cfg configs.AppConfig) {
 	log.Println("migration successful")
 
 	c := cors.New(cors.Config{
-		AllowOrigins: "http://localhost:4200",
+		AllowOrigins: "http://localhost:4200, http://localhost:3030/",
 		AllowHeaders: "Content-Type, Accept, Authorization",
 		AllowMethods: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
 	})

@@ -36,12 +36,14 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	privateRoutes.Post("/verifyUser", handler.VerifyUser)
 	privateRoutes.Get("/verify", handler.GetVerificationCode)
 
-	privateRoutes.Post("/userProfile", handler.CreateUserProfile)
-	privateRoutes.Get("/userProfile", handler.GetUserProfile)
-	privateRoutes.Patch("/userProfile", handler.UpdateUserProfile)
+	privateRoutes.Post("/profile", handler.CreateUserProfile)
+	privateRoutes.Get("/profile", handler.GetUserProfile)
+	privateRoutes.Patch("/profile", handler.UpdateUserProfile)
 
 	privateRoutes.Post("/cart", handler.AddToCart)
 	privateRoutes.Get("/cart", handler.GetCart)
+	privateRoutes.Put("/cart/:productId", handler.UpdateProductQtyInCart)
+	privateRoutes.Delete("/cart/:productID", handler.RemoveProductFromCart)
 
 	privateRoutes.Get("/order", handler.GetOrders)
 	privateRoutes.Get("/order/:id", handler.GetOrderByID)
@@ -217,6 +219,38 @@ func (h *UserHandler) AddToCart(ctx *fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "cart created", cartItems)
+}
+
+func (h *UserHandler) UpdateProductQtyInCart(ctx *fiber.Ctx) error {
+	productID, _ := strconv.Atoi(ctx.Params("productID"))
+	req := dto.UpdateCartRequest{}
+
+	if err := ctx.BodyParser(&req); err != nil {
+		return ctx.Status(http.StatusBadRequest).JSON(&fiber.Map{
+			"message": "Please provide valid product and quantity",
+		})
+	}
+
+	user := h.userService.Auth.GetCurrentUser(ctx)
+	err := h.userService.UpdateProductQtyInCart(user.ID, uint(productID), req.Qty)
+
+	if err != nil {
+		return rest.InternalErrorResponse(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "cart updated", nil)
+}
+
+func (h *UserHandler) RemoveProductFromCart(ctx *fiber.Ctx) error {
+	productID, _ := strconv.Atoi(ctx.Params("productID"))
+	user := h.userService.Auth.GetCurrentUser(ctx)
+
+	err := h.userService.RemoveProductFromCart(user.ID, uint(productID))
+	if err != nil {
+		return rest.InternalErrorResponse(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "product removed from cart", nil)
 }
 func (h *UserHandler) GetOrders(ctx *fiber.Ctx) error {
 	user := h.userService.Auth.GetCurrentUser(ctx)

@@ -24,8 +24,8 @@ type SellerInput struct {
 }
 
 type AddressInput struct {
-	AddressLine1 string `json:"address_line_1"`
-	AddressLine2 string `json:"address_line_2"`
+	AddressLine1 string `json:"address_line1"`
+	AddressLine2 string `json:"address_line2"`
 	City         string `json:"city"`
 	PostCode     uint   `json:"post_code"`
 	Country      string `json:"country"`
@@ -35,4 +35,8 @@ type ProfileInput struct {
 	FirstName    string       `json:"first_name"`
 	LastName     string       `json:"last_name"`
 	AddressInput AddressInput `json:"address"`
+}
+
+type UpdateCartRequest struct {
+	Qty int `json:"qty"`
 }

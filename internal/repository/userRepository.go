@@ -22,6 +22,7 @@ type UserRepository interface {
 	CreateCart(cart domain.Cart) error
 	DeleteCartById(id uint) error
 	DeleteCartItems(userId uint) error
+	DeleteCartItem(userID, productID uint) error
 
 	//order operations
 	FindOrders(userId uint) ([]domain.Order, error)
@@ -150,6 +151,11 @@ func (r userRepository) FindCartItem(userId, productId uint) (domain.Cart, error
 func (r userRepository) UpdateCartItem(cart domain.Cart) error {
 	var c domain.Cart
 	err := r.db.Model(&c).Clauses(clause.Returning{}).Where("id=?", cart.ID).Updates(cart).Error
+	return err
+}
+
+func (r userRepository) DeleteCartItem(userID, productID uint) error {
+	err := r.db.Where("user_id = ? AND product_id = ?", userID, productID).Delete(&domain.Cart{}).Error
 	return err
 }
 
