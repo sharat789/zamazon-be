@@ -6,9 +6,10 @@ type CreateCartRequest struct {
 }
 
 type CreatePaymentRequest struct {
-	OrderId      string  `json:"order_id"`
-	PaymentId    string  `json:"payment_id"`
-	ClientSecret string  `json:"client_secret"`
-	Amount       float64 `json:"amount"`
 	UserId       uint    `json:"user_id"`
+	Amount       float64 `json:"amount"`
+	OrderId      string  `json:"order_id"`
+	ClientSecret string  `json:"client_secret"`
+	PaymentId    string  `json:"payment_id"`
+	PaymentType  string  `json:"payment_type,omitempty"` // "intent" or "checkout"
 }

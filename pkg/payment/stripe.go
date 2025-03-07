@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/stripe/stripe-go/v78"
+	"github.com/stripe/stripe-go/v78/checkout/session"
 	"github.com/stripe/stripe-go/v78/paymentintent"
 	"log"
 )
@@ -11,6 +12,7 @@ import (
 type PaymentClient interface {
 	CreatePayment(amount float64, userId uint, orderId string) (*stripe.PaymentIntent, error)
 	GetPaymentStatus(paymentId string) (*stripe.PaymentIntent, error)
+	CreateCheckoutSession(amount float64, userId uint, orderId string) (*stripe.CheckoutSession, error)
 }
 
 type payment struct {
@@ -52,6 +54,43 @@ func (p payment) GetPaymentStatus(paymentId string) (*stripe.PaymentIntent, erro
 		return nil, errors.New("could not fetch payment status")
 	}
 	return result, nil
+}
+
+func (p payment) CreateCheckoutSession(amount float64, userId uint, orderId string) (*stripe.CheckoutSession, error) {
+	stripe.Key = p.apiKey
+	amountInCents := int64(amount * 100)
+
+	params := &stripe.CheckoutSessionParams{
+		PaymentMethodTypes: stripe.StringSlice([]string{
+			"card",
+		}),
+		Mode: stripe.String(string(stripe.CheckoutSessionModePayment)),
+		LineItems: []*stripe.CheckoutSessionLineItemParams{
+			{
+				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
+					Currency: stripe.String(string(stripe.CurrencyEUR)),
+					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
+						Name: stripe.String("Order Payment"),
+					},
+					UnitAmount: stripe.Int64(amountInCents),
+				},
+				Quantity: stripe.Int64(1),
+			},
+		},
+		SuccessURL: stripe.String(p.successUrl + "?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String(p.cancelURL),
+	}
+
+	params.AddMetadata("userId", fmt.Sprintf("%d", userId))
+	params.AddMetadata("orderId", fmt.Sprintf("%s", orderId))
+
+	session, err := session.New(params)
+	if err != nil {
+		log.Printf("Error while creating checkout session %v\n", err.Error())
+		return nil, errors.New("could not create checkout session")
+	}
+
+	return session, nil
 }
 
 func NewPaymentClient(apiKey, successUrl, failureUrl string) PaymentClient {

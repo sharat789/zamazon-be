@@ -48,6 +48,7 @@ func SetupTransactionRoutes(rh *rest.RestHandler) {
 	secRoute := app.Group("/buyer", rh.Auth.AuthorizeUser)
 	secRoute.Get("/payment", handler.MakePayment)
 	secRoute.Get("/verify", handler.VerifyPayment)
+	secRoute.Get("/checkout", handler.CreateCheckoutSession)
 
 	sellerRoute := app.Group("/seller", rh.Auth.AuthorizeSeller)
 	sellerRoute.Get("/orders", handler.GetOrders)
@@ -95,6 +96,52 @@ func (h *TransactionHandler) MakePayment(ctx *fiber.Ctx) error {
 		"message": "Payment initiated",
 		"pub_key": pubKey,
 		"secret":  paymentResult.ClientSecret,
+	})
+}
+
+func (h *TransactionHandler) CreateCheckoutSession(ctx *fiber.Ctx) error {
+	user := h.transactionService.Auth.GetCurrentUser(ctx)
+
+	// Get cart items and total amount
+	cartItems, totalAmount, err := h.userService.FindCart(user.ID)
+	if err != nil {
+		return rest.InternalErrorResponse(ctx, errors.New("unable to fetch cart items"))
+	}
+
+	if len(cartItems) == 0 {
+		return rest.ErrorResponse(ctx, 400, errors.New("cart is empty"))
+	}
+
+	// Generate order ID
+	orderId, err := helper.GenerateRandom(8)
+	if err != nil {
+		return rest.InternalErrorResponse(ctx, errors.New("could not generate order id"))
+	}
+
+	// Create checkout session with Stripe
+	checkoutSession, err := h.paymentClient.CreateCheckoutSession(totalAmount, user.ID, orderId)
+	if err != nil {
+		return rest.ErrorResponse(ctx, 400, err)
+	}
+
+	// Store payment details in a pending state
+	err = h.transactionService.StoreCreatedPayment(dto.CreatePaymentRequest{
+		UserId:       user.ID,
+		Amount:       totalAmount,
+		OrderId:      orderId,
+		ClientSecret: "", // Not applicable for Checkout
+		PaymentId:    checkoutSession.ID,
+		PaymentType:  "checkout",
+	})
+
+	if err != nil {
+		return rest.ErrorResponse(ctx, 400, err)
+	}
+
+	return ctx.Status(200).JSON(&fiber.Map{
+		"message":      "Checkout session created",
+		"session_id":   checkoutSession.ID,
+		"checkout_url": checkoutSession.URL,
 	})
 }
 
