@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"github.com/sharat789/zamazon-be/internal/domain"
 	"github.com/sharat789/zamazon-be/internal/dto"
 	"github.com/sharat789/zamazon-be/internal/helper"
@@ -53,6 +54,14 @@ func (s TransactionService) UpdatePayment(userId uint, status string, paymentLog
 	p.Status = string(domain.PaymentStatus(status))
 	p.Response = paymentLog
 	return s.Repo.UpdatePayment(p)
+}
+
+func (s TransactionService) GetPaymentByID(paymentId string) (domain.Payment, error) {
+	payment, err := s.Repo.FindPaymentByID(paymentId)
+	if err != nil {
+		return domain.Payment{}, errors.New("payment not found")
+	}
+	return payment, nil
 }
 func NewTransactionService(repo repository.TransactionRepository, auth helper.Auth) TransactionService {
 	return TransactionService{

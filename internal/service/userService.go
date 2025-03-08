@@ -346,6 +346,14 @@ func (s UserService) CreateOrder(userId uint, orderRef string, paymentId string,
 	return err
 }
 
+func (s UserService) ClearCart(userID uint) error {
+	err := s.Repo.DeleteCartItems(userID)
+	if err != nil {
+		return errors.New("unable to clear cart")
+	}
+	return nil
+}
+
 func (s UserService) GetOrders(u domain.User) ([]domain.Order, error) {
 	orders, err := s.Repo.FindOrders(u.ID)
 	if err != nil {

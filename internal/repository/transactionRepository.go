@@ -12,6 +12,7 @@ type TransactionRepository interface {
 	UpdatePayment(payment *domain.Payment) error
 	FindOrders(userId uint) ([]domain.OrderItem, error)
 	FindOrderById(orderId uint, userId uint) (dto.SellerOrderDetails, error)
+	FindPaymentByID(paymentId string) (domain.Payment, error)
 }
 
 type transactionRepository struct {
@@ -40,6 +41,12 @@ func (t transactionRepository) FindOrders(userId uint) ([]domain.OrderItem, erro
 func (t transactionRepository) FindOrderById(orderId uint, userId uint) (dto.SellerOrderDetails, error) {
 	//TODO implement me
 	panic("implement me")
+}
+
+func (r transactionRepository) FindPaymentByID(paymentId string) (domain.Payment, error) {
+	var payment domain.Payment
+	err := r.db.Where("payment_id = ?", paymentId).First(&payment).Error
+	return payment, err
 }
 
 func NewTransactionRepository(db *gorm.DB) TransactionRepository {

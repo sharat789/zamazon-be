@@ -49,6 +49,8 @@ func SetupTransactionRoutes(rh *rest.RestHandler) {
 	secRoute.Get("/payment", handler.MakePayment)
 	secRoute.Get("/verify", handler.VerifyPayment)
 	secRoute.Get("/checkout", handler.CreateCheckoutSession)
+	secRoute.Get("/orders", handler.GetOrders)
+	secRoute.Get("/order/:id", handler.GetOrder)
 
 	sellerRoute := app.Group("/seller", rh.Auth.AuthorizeSeller)
 	sellerRoute.Get("/orders", handler.GetOrders)
@@ -147,7 +149,55 @@ func (h *TransactionHandler) CreateCheckoutSession(ctx *fiber.Ctx) error {
 
 func (h *TransactionHandler) VerifyPayment(ctx *fiber.Ctx) error {
 	user := h.transactionService.Auth.GetCurrentUser(ctx)
+	sessionId := ctx.Query("session_id")
 
+	// If session_id is provided, verify checkout session
+	if sessionId != "" {
+		session, err := h.paymentClient.GetCheckoutSession(sessionId)
+		if err != nil {
+			return rest.ErrorResponse(ctx, 400, errors.New("invalid checkout session"))
+		}
+
+		// Check if session is paid
+		if session.PaymentStatus == "paid" {
+			// Get payment from database using session ID as payment ID
+			payment, err := h.transactionService.GetPaymentByID(sessionId)
+			if err != nil || payment.ID == 0 {
+				return rest.ErrorResponse(ctx, 404, errors.New("payment not found"))
+			}
+
+			// Check if the payment has already been verified
+			if payment.Status == "success" {
+				return ctx.Status(200).JSON(&fiber.Map{
+					"message":  "Payment already verified and order created",
+					"order_id": payment.OrderId,
+				})
+			}
+
+			// Create order from cart
+			err = h.userService.CreateOrder(user.ID, payment.OrderId, payment.PaymentId, payment.Amount)
+			if err != nil {
+				return rest.InternalErrorResponse(ctx, err)
+			}
+
+			// Update payment status
+			sessionJSON, _ := json.Marshal(session)
+			sessionLogs := string(sessionJSON)
+			err = h.transactionService.UpdatePayment(user.ID, "success", sessionLogs)
+			if err != nil {
+				return rest.InternalErrorResponse(ctx, err)
+			}
+
+			return ctx.Status(200).JSON(&fiber.Map{
+				"message":  "Payment successful and order created",
+				"order_id": payment.OrderId,
+			})
+		} else {
+			return rest.ErrorResponse(ctx, 400, errors.New("payment not completed"))
+		}
+	}
+
+	// For direct payment intents (existing flow)
 	activePayment, err := h.transactionService.GetActivePayment(user.ID)
 	if err != nil || activePayment.ID == 0 {
 		return rest.ErrorResponse(ctx, 404, errors.New("no active payment found"))
@@ -172,11 +222,10 @@ func (h *TransactionHandler) VerifyPayment(ctx *fiber.Ctx) error {
 	}
 
 	return ctx.Status(200).JSON(&fiber.Map{
-		"message":  "Payment initiated",
-		"response": paymentResponse,
+		"message": "Payment verified",
+		"status":  paymentStatus,
 	})
 }
-
 func (h *TransactionHandler) GetOrders(ctx *fiber.Ctx) error {
 	user := h.transactionService.Auth.GetCurrentUser(ctx)
 	orders, err := h.transactionService.GetOrders(user)

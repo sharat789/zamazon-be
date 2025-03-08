@@ -44,6 +44,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	privateRoutes.Get("/cart", handler.GetCart)
 	privateRoutes.Put("/cart/:productId", handler.UpdateProductQtyInCart)
 	privateRoutes.Delete("/cart/:productID", handler.RemoveProductFromCart)
+	privateRoutes.Delete("/cart", handler.ClearCart)
 
 	privateRoutes.Get("/order", handler.GetOrders)
 	privateRoutes.Get("/order/:id", handler.GetOrderByID)
@@ -251,6 +252,17 @@ func (h *UserHandler) RemoveProductFromCart(ctx *fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "product removed from cart", nil)
+}
+
+func (h *UserHandler) ClearCart(ctx *fiber.Ctx) error {
+	user := h.userService.Auth.GetCurrentUser(ctx)
+
+	err := h.userService.ClearCart(user.ID)
+	if err != nil {
+		return rest.InternalErrorResponse(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "cart cleared", nil)
 }
 func (h *UserHandler) GetOrders(ctx *fiber.Ctx) error {
 	user := h.userService.Auth.GetCurrentUser(ctx)

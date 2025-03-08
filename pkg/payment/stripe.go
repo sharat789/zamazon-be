@@ -13,6 +13,7 @@ type PaymentClient interface {
 	CreatePayment(amount float64, userId uint, orderId string) (*stripe.PaymentIntent, error)
 	GetPaymentStatus(paymentId string) (*stripe.PaymentIntent, error)
 	CreateCheckoutSession(amount float64, userId uint, orderId string) (*stripe.CheckoutSession, error)
+	GetCheckoutSession(sessionId string) (*stripe.CheckoutSession, error)
 }
 
 type payment struct {
@@ -77,8 +78,8 @@ func (p payment) CreateCheckoutSession(amount float64, userId uint, orderId stri
 				Quantity: stripe.Int64(1),
 			},
 		},
-		SuccessURL: stripe.String(p.successUrl + "?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String(p.cancelURL),
+		SuccessURL: stripe.String(p.successUrl + "/#/success?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String(p.cancelURL + "/#/cart"),
 	}
 
 	params.AddMetadata("userId", fmt.Sprintf("%d", userId))
@@ -90,6 +91,16 @@ func (p payment) CreateCheckoutSession(amount float64, userId uint, orderId stri
 		return nil, errors.New("could not create checkout session")
 	}
 
+	return session, nil
+}
+
+func (p payment) GetCheckoutSession(sessionId string) (*stripe.CheckoutSession, error) {
+	stripe.Key = p.apiKey
+	session, err := session.Get(sessionId, nil)
+	if err != nil {
+		log.Printf("Error retrieving checkout session: %v\n", err)
+		return nil, errors.New("could not retrieve checkout session")
+	}
 	return session, nil
 }
 
