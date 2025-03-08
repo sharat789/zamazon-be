@@ -332,6 +332,7 @@ func (s UserService) CreateOrder(userId uint, orderRef string, paymentId string,
 		OrderRefNumber: orderRef,
 		Amount:         amount,
 		Items:          orderItems,
+		Status:         "completed",
 	}
 
 	err = s.Repo.CreateOrder(order)

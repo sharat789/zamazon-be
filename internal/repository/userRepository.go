@@ -100,8 +100,7 @@ func (r userRepository) FindOrderByID(orderId uint, userId uint) (domain.Order, 
 
 func (r userRepository) FindOrders(userId uint) ([]domain.Order, error) {
 	var orders []domain.Order
-	err := r.db.Where("user_id=?", userId).Find(&orders).Error
-
+	err := r.db.Preload("Items").Where("user_id = ?", userId).Find(&orders).Error
 	if err != nil {
 		log.Printf("Error while fetching orders %v", err)
 		return nil, errors.New("could not fetch orders")
