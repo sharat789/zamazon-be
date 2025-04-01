@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: users-env-config
+  namespace: zamazon
+data:
+  HTTP_PORT: ":8080"
+  DSN: "host=postgres-user-service user=root password=root dbname=zamazon-db-user port=5432 sslmode=disable"
+  APP_SECRET: "zamazon-secret"
+  JWT_SECRET: "qhx5shDMjBChXdPrxzFmCr+W09Dz4uPvUGUp66xCrCs="
+  CATALOG_URL: "http://catalog-service:80"

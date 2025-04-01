@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transactions-deployment
+  namespace: zamazon
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: transactions
+  template:
+    metadata:
+      labels:
+        app: transactions
+    spec:
+      containers:
+        - name: transactions
+          image: sharat789/zamazon-be-ms-transactions:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: transactions-env-config
