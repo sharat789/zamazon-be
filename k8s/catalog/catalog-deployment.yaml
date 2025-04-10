@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: catalog
-          image: sharat789/zamazon-be-ms-catalog
+          image: sharat789/zamazon-be-ms-catalog:latest
           ports:
             - containerPort: 8080
           envFrom:

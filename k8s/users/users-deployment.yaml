@@ -29,7 +29,7 @@ spec:
               memory: "100Mi"
       containers:
         - name: users
-          image: sharat789/zamazon-be-ms-users
+          image: sharat789/zamazon-be-ms-users:latest
           ports:
             - containerPort: 8080
           envFrom:
