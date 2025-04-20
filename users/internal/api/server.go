@@ -2,8 +2,11 @@ package api
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sharat789/zamazon-be-ms/users/configs"
+	"github.com/sharat789/zamazon-be-ms/users/internal/api/metrics"
 	"github.com/sharat789/zamazon-be-ms/users/internal/api/rest"
 	"github.com/sharat789/zamazon-be-ms/users/internal/api/rest/handlers"
 	"github.com/sharat789/zamazon-be-ms/users/internal/client"
@@ -15,9 +18,9 @@ import (
 
 func StartServer(cfg configs.AppConfig) {
 	app := fiber.New()
-
+	app.Use(metrics.PrometheusMiddleware())
 	db, err := gorm.Open(postgres.Open(cfg.DataSourceName), &gorm.Config{})
-
+	app.Get("/metrics", adaptor.HTTPHandler(promhttp.Handler()))
 	if err != nil {
 		log.Fatalf("db conn error %v", err)
 	}
