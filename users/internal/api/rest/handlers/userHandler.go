@@ -3,7 +3,7 @@ package handlers
 import (
 	"errors"
 	"github.com/gofiber/fiber/v2"
-	"github.com/sharat789/zamazon-be-ms/common/auth"
+	"github.com/sharat789/zamazon-be-ms/users/internal/api/middleware"
 	"github.com/sharat789/zamazon-be-ms/users/internal/api/rest"
 	"github.com/sharat789/zamazon-be-ms/users/internal/client"
 	"github.com/sharat789/zamazon-be-ms/users/internal/dto"
@@ -18,12 +18,12 @@ type UserHandler struct {
 	userService service.UserService
 }
 
-func SetupUserRoutes(rh *rest.RestHandler, catalogClient *client.CatalogClient) {
+func SetupUserRoutes(rh *rest.RestHandler, catalogClient *client.CatalogClient, authClient *client.AuthClient) {
 	app := rh.App
 	svc := service.UserService{
 		Repo:          repository.NewUserRepository(rh.DB),
-		Auth:          rh.Auth,
 		CatalogClient: catalogClient,
+		AuthClient:    authClient,
 	}
 	handler := UserHandler{
 		svc,
@@ -32,8 +32,10 @@ func SetupUserRoutes(rh *rest.RestHandler, catalogClient *client.CatalogClient) 
 	//public endpoints
 	publicRoutes.Post("/register", handler.RegisterUser)
 	publicRoutes.Post("/login", handler.Login)
-
-	privateRoutes := publicRoutes.Group("/", rh.Auth.AuthorizeUser)
+	publicRoutes.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"status": "ok"})
+	})
+	privateRoutes := publicRoutes.Group("/", middleware.AuthorizeUser(authClient))
 	//private endpoints
 	privateRoutes.Post("/verifyUser", handler.VerifyUser)
 	privateRoutes.Get("/verify", handler.GetVerificationCode)
@@ -96,7 +98,7 @@ func (h *UserHandler) Login(ctx *fiber.Ctx) error {
 	})
 }
 func (h *UserHandler) VerifyUser(ctx *fiber.Ctx) error {
-	user := h.userService.Auth.GetCurrentUser(ctx)
+	user := h.userService.GetCurrentUser(ctx)
 
 	var req dto.VerificationCodeInput
 
@@ -119,7 +121,7 @@ func (h *UserHandler) VerifyUser(ctx *fiber.Ctx) error {
 	})
 }
 func (h *UserHandler) GetVerificationCode(ctx *fiber.Ctx) error {
-	tokenUser := h.userService.Auth.GetCurrentUser(ctx)
+	tokenUser := h.userService.GetCurrentUser(ctx)
 
 	code, err := h.userService.GetVerificationCode(tokenUser.ID)
 
@@ -136,7 +138,7 @@ func (h *UserHandler) GetVerificationCode(ctx *fiber.Ctx) error {
 	})
 }
 func (h *UserHandler) GetUserProfile(ctx *fiber.Ctx) error {
-	user := h.userService.Auth.GetCurrentUser(ctx)
+	user := h.userService.GetCurrentUser(ctx)
 	log.Println(user)
 
 	profile, err := h.userService.GetUserProfile(user.ID)
@@ -149,7 +151,7 @@ func (h *UserHandler) GetUserProfile(ctx *fiber.Ctx) error {
 }
 
 func (h *UserHandler) UpdateUserProfile(ctx *fiber.Ctx) error {
-	user := h.userService.Auth.GetCurrentUser(ctx)
+	user := h.userService.GetCurrentUser(ctx)
 	log.Println(user)
 
 	req := dto.ProfileInput{}
@@ -171,7 +173,7 @@ func (h *UserHandler) UpdateUserProfile(ctx *fiber.Ctx) error {
 }
 
 func (h *UserHandler) CreateUserProfile(ctx *fiber.Ctx) error {
-	user := h.userService.Auth.GetCurrentUser(ctx)
+	user := h.userService.GetCurrentUser(ctx)
 	req := dto.ProfileInput{}
 
 	if err := ctx.BodyParser(&req); err != nil {
@@ -194,7 +196,7 @@ func (h *UserHandler) CreateUserProfile(ctx *fiber.Ctx) error {
 	})
 }
 func (h *UserHandler) GetCart(ctx *fiber.Ctx) error {
-	user := h.userService.Auth.GetCurrentUser(ctx)
+	user := h.userService.GetCurrentUser(ctx)
 	cart, _, err := h.userService.FindCart(user.ID)
 	if err != nil {
 		return rest.InternalErrorResponse(ctx, errors.New("unable to fetch cart"))
@@ -212,7 +214,7 @@ func (h *UserHandler) AddToCart(ctx *fiber.Ctx) error {
 		})
 	}
 
-	user := h.userService.Auth.GetCurrentUser(ctx)
+	user := h.userService.GetCurrentUser(ctx)
 	log.Println(user)
 
 	cartItems, err := h.userService.CreateCart(req, user)
@@ -234,7 +236,7 @@ func (h *UserHandler) UpdateProductQtyInCart(ctx *fiber.Ctx) error {
 		})
 	}
 
-	user := h.userService.Auth.GetCurrentUser(ctx)
+	user := h.userService.GetCurrentUser(ctx)
 	err := h.userService.UpdateProductQtyInCart(user.ID, uint(productID), req.Qty)
 
 	if err != nil {
@@ -246,7 +248,7 @@ func (h *UserHandler) UpdateProductQtyInCart(ctx *fiber.Ctx) error {
 
 func (h *UserHandler) RemoveProductFromCart(ctx *fiber.Ctx) error {
 	productID, _ := strconv.Atoi(ctx.Params("productID"))
-	user := h.userService.Auth.GetCurrentUser(ctx)
+	user := h.userService.GetCurrentUser(ctx)
 
 	err := h.userService.RemoveProductFromCart(user.ID, uint(productID))
 	if err != nil {
@@ -257,7 +259,7 @@ func (h *UserHandler) RemoveProductFromCart(ctx *fiber.Ctx) error {
 }
 
 func (h *UserHandler) ClearCart(ctx *fiber.Ctx) error {
-	user := h.userService.Auth.GetCurrentUser(ctx)
+	user := h.userService.GetCurrentUser(ctx)
 
 	err := h.userService.ClearCart(user.ID)
 	if err != nil {
@@ -267,7 +269,7 @@ func (h *UserHandler) ClearCart(ctx *fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "cart cleared", nil)
 }
 func (h *UserHandler) GetOrders(ctx *fiber.Ctx) error {
-	tokenUser := h.userService.Auth.GetCurrentUser(ctx)
+	tokenUser := h.userService.GetCurrentUser(ctx)
 	orders, err := h.userService.GetOrders(tokenUser.ID)
 	if err != nil {
 		return rest.InternalErrorResponse(ctx, errors.New("unable to fetch orders"))
@@ -278,7 +280,7 @@ func (h *UserHandler) GetOrders(ctx *fiber.Ctx) error {
 
 func (h *UserHandler) GetOrderByID(ctx *fiber.Ctx) error {
 	orderId, _ := strconv.Atoi(ctx.Params("id"))
-	user := h.userService.Auth.GetCurrentUser(ctx)
+	user := h.userService.GetCurrentUser(ctx)
 	order, err := h.userService.GetOrderByID(uint(orderId), user.ID)
 	if err != nil {
 		return rest.InternalErrorResponse(ctx, errors.New("unable to fetch orders"))
@@ -299,10 +301,10 @@ func (h *UserHandler) CreateOrder(ctx *fiber.Ctx) error {
 	}
 
 	// Use the token user for authorization check
-	tokenUser := h.userService.Auth.GetCurrentUser(ctx)
+	tokenUser := h.userService.GetCurrentUser(ctx)
 
 	// Additional security check - ensure the order is for the authorized user
-	if tokenUser.ID != request.UserID && tokenUser.UserRole != auth.ROLE_SELLER {
+	if tokenUser.ID != request.UserID && tokenUser.UserRole != "seller" {
 		return rest.ErrorResponse(ctx, http.StatusForbidden, errors.New("unauthorized to create order for this user"))
 	}
 
@@ -325,7 +327,7 @@ func (h *UserHandler) CreateOrder(ctx *fiber.Ctx) error {
 }
 
 //func (h *UserHandler) becomeSeller(ctx *fiber.Ctx) error {
-//	user := h.userService.Auth.GetCurrentUser(ctx)
+//	user := h.userService.GetCurrentUser(ctx)
 //	req := dto.SellerInput{}
 //
 //	err := ctx.BodyParser(&req)

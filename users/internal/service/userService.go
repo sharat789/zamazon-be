@@ -2,7 +2,7 @@ package service
 
 import (
 	"errors"
-	"github.com/sharat789/zamazon-be-ms/common/auth"
+	"github.com/gofiber/fiber/v2"
 	"github.com/sharat789/zamazon-be-ms/users/internal/client"
 	"github.com/sharat789/zamazon-be-ms/users/internal/domain"
 	"github.com/sharat789/zamazon-be-ms/users/internal/dto"
@@ -13,12 +13,12 @@ import (
 
 type UserService struct {
 	Repo          repository.UserRepository
-	Auth          auth.Auth
 	CatalogClient *client.CatalogClient
+	AuthClient    *client.AuthClient
 }
 
 func (s UserService) UserSignup(input dto.UserSignup) (string, error) {
-	hashPassword, err := s.Auth.CreateHashPassword(input.Password)
+	hashPassword, err := s.AuthClient.CreateHashPassword(input.Password)
 
 	if err != nil {
 		return "", err
@@ -34,7 +34,7 @@ func (s UserService) UserSignup(input dto.UserSignup) (string, error) {
 		return "", err
 	}
 
-	return s.Auth.GenerateToken(user.ID, user.Email, user.UserType)
+	return s.AuthClient.GenerateToken(user.ID, user.Email, user.UserType)
 }
 func (s UserService) findUserByEmail(email string) (*domain.User, error) {
 	user, err := s.Repo.FindUser(email)
@@ -51,12 +51,12 @@ func (s UserService) Login(email string, password string) (string, error) {
 		return "", errors.New("user does not exist with the provided email")
 	}
 	log.Println(user.Password)
-	err = s.Auth.VerifyPassword(password, user.Password)
+	err = s.AuthClient.VerifyPassword(password, user.Password)
 
 	if err != nil {
 		return "", err
 	}
-	return s.Auth.GenerateToken(user.ID, user.Email, user.UserType)
+	return s.AuthClient.GenerateToken(user.ID, user.Email, user.UserType)
 }
 
 func (s UserService) isVerifiedUser(id uint) bool {
@@ -70,7 +70,7 @@ func (s UserService) GetVerificationCode(userID uint) (string, error) {
 		return "", errors.New("user already verified")
 	}
 
-	code, err := s.Auth.GenerateCode()
+	code, err := s.AuthClient.GenerateCode()
 	if err != nil {
 		return "", err
 	}
@@ -210,7 +210,7 @@ func (s UserService) FindCart(id uint) ([]domain.Cart, float64, error) {
 	return cartItems, totalAmount, nil
 }
 
-func (s UserService) CreateCart(input dto.CreateCartRequest, u auth.TokenUser) ([]domain.Cart, error) {
+func (s UserService) CreateCart(input dto.CreateCartRequest, u *client.TokenUser) ([]domain.Cart, error) {
 	// check if cart exists
 	cart, _ := s.Repo.FindCartItem(u.ID, input.ProductID)
 	if cart.ID != 0 {
@@ -344,4 +344,12 @@ func (s UserService) GetOrderByID(id uint, userId uint) (domain.Order, error) {
 		return order, err
 	}
 	return order, nil
+}
+
+func (s UserService) GetCurrentUser(c *fiber.Ctx) *client.TokenUser {
+	user, ok := c.Locals("user").(*client.TokenUser)
+	if !ok {
+		return nil
+	}
+	return user
 }

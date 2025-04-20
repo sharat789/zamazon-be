@@ -12,6 +12,7 @@ type AppConfig struct {
 	AppSecret      string
 	JWTSecret      string
 	CatalogURL     string
+	AuthURL        string
 }
 
 func EnvSetup() (cfg AppConfig, err error) {
@@ -45,5 +46,9 @@ func EnvSetup() (cfg AppConfig, err error) {
 	if len(catalogURL) < 1 {
 		return AppConfig{}, errors.New("catalog url variable not found")
 	}
-	return AppConfig{Port: httpPort, DataSourceName: dsn, AppSecret: appSecret, JWTSecret: jwtSecret, CatalogURL: catalogURL}, nil
+	authURL := os.Getenv("AUTH_URL")
+	if len(authURL) < 1 {
+		return AppConfig{}, errors.New("auth url variable not found")
+	}
+	return AppConfig{Port: httpPort, DataSourceName: dsn, AppSecret: appSecret, JWTSecret: jwtSecret, CatalogURL: catalogURL, AuthURL: authURL}, nil
 }

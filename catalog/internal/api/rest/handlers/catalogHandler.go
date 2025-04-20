@@ -23,6 +23,9 @@ func SetupCatalogRoutes(rh *rest.RestHandler) {
 		svc,
 	}
 	//public endpoints for buyers
+	app.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"status": "ok"})
+	})
 	app.Get("/products", handler.GetProducts)
 	app.Get("/products/:id", handler.GetProductByID)
 	app.Get("/categories", handler.GetCategories)

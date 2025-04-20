@@ -42,8 +42,11 @@ func SetupTransactionRoutes(rh *rest.RestHandler) {
 		rh.Config,
 		rh.Config.UserServiceURL,
 	}
-
-	secRoute := app.Group("/buyer", rh.Auth.AuthorizeUser)
+	pubRoutes := app.Group("/buyer")
+	pubRoutes.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"status": "ok"})
+	})
+	secRoute := pubRoutes.Group("/", rh.Auth.AuthorizeUser)
 	secRoute.Get("/verify", handler.VerifyPayment)
 	secRoute.Get("/checkout", handler.CreateCheckoutSession)
 	secRoute.Get("/orders", handler.GetOrders)
