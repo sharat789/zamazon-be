@@ -2,15 +2,16 @@ package service
 
 import (
 	"errors"
-	"github.com/sharat789/zamazon-be-ms/common/auth"
+	"github.com/gofiber/fiber/v2"
+	"github.com/sharat789/zamazon-be-ms/transactions/internal/client"
 	"github.com/sharat789/zamazon-be-ms/transactions/internal/domain"
 	"github.com/sharat789/zamazon-be-ms/transactions/internal/dto"
 	"github.com/sharat789/zamazon-be-ms/transactions/internal/repository"
 )
 
 type TransactionService struct {
-	Repo repository.TransactionRepository
-	Auth auth.Auth
+	Repo       repository.TransactionRepository
+	AuthClient *client.AuthClient
 }
 
 func (s TransactionService) GetActivePayment(userId uint) (*domain.Payment, error) {
@@ -47,9 +48,17 @@ func (s TransactionService) GetPaymentByID(paymentId string) (domain.Payment, er
 	}
 	return payment, nil
 }
-func NewTransactionService(repo repository.TransactionRepository, auth auth.Auth) TransactionService {
+
+func (s TransactionService) GetCurrentUser(c *fiber.Ctx) *client.TokenUser {
+	user, ok := c.Locals("user").(*client.TokenUser)
+	if !ok {
+		return nil
+	}
+	return user
+}
+func NewTransactionService(repo repository.TransactionRepository, authClient *client.AuthClient) TransactionService {
 	return TransactionService{
-		Repo: repo,
-		Auth: auth,
+		Repo:       repo,
+		AuthClient: authClient,
 	}
 }

@@ -16,6 +16,7 @@ type AppConfig struct {
 	SuccessURL     string
 	CancelURL      string
 	UserServiceURL string
+	AuthURL        string
 }
 
 func EnvSetup() (cfg AppConfig, err error) {
@@ -46,8 +47,13 @@ func EnvSetup() (cfg AppConfig, err error) {
 	}
 
 	UserServiceURL := os.Getenv("USER_SERVICE_URL")
-	if len(jwtSecret) < 1 {
+	if len(UserServiceURL) < 1 {
 		return AppConfig{}, errors.New("user service URL not found")
+	}
+
+	AuthURL := os.Getenv("AUTH_SERVICE_URL")
+	if len(AuthURL) < 1 {
+		return AppConfig{}, errors.New("auth service URL not found")
 	}
 	return AppConfig{Port: httpPort, DataSourceName: dsn, AppSecret: appSecret,
 		JWTSecret:      jwtSecret,
@@ -55,5 +61,7 @@ func EnvSetup() (cfg AppConfig, err error) {
 		PubKey:         os.Getenv("STRIPE_PUB_KEY"),
 		SuccessURL:     os.Getenv("SUCCESS_URL"),
 		CancelURL:      os.Getenv("CANCEL_URL"),
-		UserServiceURL: UserServiceURL}, nil
+		UserServiceURL: UserServiceURL,
+		AuthURL:        AuthURL}, nil
+
 }

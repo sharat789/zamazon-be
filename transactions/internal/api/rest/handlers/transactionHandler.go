@@ -6,9 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
-	"github.com/sharat789/zamazon-be-ms/common/auth"
 	"github.com/sharat789/zamazon-be-ms/transactions/configs"
+	"github.com/sharat789/zamazon-be-ms/transactions/internal/api/middleware"
 	"github.com/sharat789/zamazon-be-ms/transactions/internal/api/rest"
+	"github.com/sharat789/zamazon-be-ms/transactions/internal/client"
 	"github.com/sharat789/zamazon-be-ms/transactions/internal/dto"
 	"github.com/sharat789/zamazon-be-ms/transactions/internal/repository"
 	"github.com/sharat789/zamazon-be-ms/transactions/internal/service"
@@ -24,29 +25,30 @@ type TransactionHandler struct {
 	paymentClient      payment.PaymentClient
 	Config             configs.AppConfig
 	userServiceURL     string
+	authClient         *client.AuthClient
 }
 
-func initialiseTransactionService(db *gorm.DB, auth auth.Auth) service.TransactionService {
+func initialiseTransactionService(db *gorm.DB, authClient *client.AuthClient) service.TransactionService {
 	return service.TransactionService{
 		Repo: repository.NewTransactionRepository(db),
-		Auth: auth,
 	}
 }
 
-func SetupTransactionRoutes(rh *rest.RestHandler) {
+func SetupTransactionRoutes(rh *rest.RestHandler, authClient *client.AuthClient) {
 	app := rh.App
-	svc := initialiseTransactionService(rh.DB, rh.Auth)
+	svc := initialiseTransactionService(rh.DB, authClient)
 	handler := TransactionHandler{
 		svc,
 		rh.PaymentClient,
 		rh.Config,
 		rh.Config.UserServiceURL,
+		authClient,
 	}
 	pubRoutes := app.Group("/buyer")
 	pubRoutes.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
-	secRoute := pubRoutes.Group("/", rh.Auth.AuthorizeUser)
+	secRoute := pubRoutes.Group("/", middleware.AuthorizeUser(authClient))
 	secRoute.Get("/verify", handler.VerifyPayment)
 	secRoute.Get("/checkout", handler.CreateCheckoutSession)
 	secRoute.Get("/orders", handler.GetOrders)
@@ -148,7 +150,7 @@ func (h *TransactionHandler) createOrder(request dto.CreateOrderRequest, token s
 }
 
 func (h *TransactionHandler) CreateCheckoutSession(ctx *fiber.Ctx) error {
-	user := h.transactionService.Auth.GetCurrentUser(ctx)
+	user := h.transactionService.GetCurrentUser(ctx)
 	token := ctx.Get("Authorization")
 
 	// Get cart items and total amount using user service HTTP call
@@ -163,7 +165,7 @@ func (h *TransactionHandler) CreateCheckoutSession(ctx *fiber.Ctx) error {
 	}
 
 	// Generate order ID
-	orderId, err := auth.GenerateRandom(8)
+	orderId, err := h.authClient.GenerateCode()
 	if err != nil {
 		return rest.InternalErrorResponse(ctx, errors.New("could not generate order id"))
 	}
@@ -196,7 +198,7 @@ func (h *TransactionHandler) CreateCheckoutSession(ctx *fiber.Ctx) error {
 }
 
 func (h *TransactionHandler) VerifyPayment(ctx *fiber.Ctx) error {
-	user := h.transactionService.Auth.GetCurrentUser(ctx)
+	user := h.transactionService.GetCurrentUser(ctx)
 	token := ctx.Get("Authorization")
 	sessionId := ctx.Query("session_id")
 
@@ -255,7 +257,7 @@ func (h *TransactionHandler) VerifyPayment(ctx *fiber.Ctx) error {
 }
 
 func (h *TransactionHandler) GetOrders(ctx *fiber.Ctx) error {
-	user := h.transactionService.Auth.GetCurrentUser(ctx)
+	user := h.transactionService.GetCurrentUser(ctx)
 	token := ctx.Get("Authorization")
 	log.Println(user)
 	resp, err := h.callUserService("GET", "/orders", nil, token)

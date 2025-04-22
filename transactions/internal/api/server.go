@@ -2,11 +2,14 @@ package api
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/sharat789/zamazon-be-ms/common/auth"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sharat789/zamazon-be-ms/metrics"
 	"github.com/sharat789/zamazon-be-ms/transactions/configs"
 	"github.com/sharat789/zamazon-be-ms/transactions/internal/api/rest"
 	"github.com/sharat789/zamazon-be-ms/transactions/internal/api/rest/handlers"
+	"github.com/sharat789/zamazon-be-ms/transactions/internal/client"
 	"github.com/sharat789/zamazon-be-ms/transactions/internal/domain"
 	"github.com/sharat789/zamazon-be-ms/transactions/pkg/payment"
 	"gorm.io/driver/postgres"
@@ -16,9 +19,9 @@ import (
 
 func StartServer(cfg configs.AppConfig) {
 	app := fiber.New()
-
+	app.Use(metrics.PrometheusMiddleware())
 	db, err := gorm.Open(postgres.Open(cfg.DataSourceName), &gorm.Config{})
-
+	app.Get("/metrics", adaptor.HTTPHandler(promhttp.Handler()))
 	if err != nil {
 		log.Fatalf("db conn error %v", err)
 	}
@@ -42,19 +45,18 @@ func StartServer(cfg configs.AppConfig) {
 
 	app.Use(c)
 	paymentClient := payment.NewPaymentClient(cfg.StripeSecret, cfg.SuccessURL, cfg.CancelURL)
-	authService := auth.SetupAuth(cfg.JWTSecret)
+	authClient := client.NewAuthClient(cfg.AuthURL)
 	rh := &rest.RestHandler{
 		app,
 		db,
 		paymentClient,
 		cfg,
-		authService,
 	}
 
-	SetupRoutes(rh)
+	SetupRoutes(rh, authClient)
 	app.Listen(cfg.Port)
 }
 
-func SetupRoutes(rh *rest.RestHandler) {
-	handlers.SetupTransactionRoutes(rh)
+func SetupRoutes(rh *rest.RestHandler, authClient *client.AuthClient) {
+	handlers.SetupTransactionRoutes(rh, authClient)
 }
