@@ -10,123 +10,164 @@ import (
 )
 
 var (
-	// RequestCounter tracks total HTTP requests
+	// Same metric declarations as before
 	RequestCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_requests_total",
 			Help: "Total number of HTTP requests",
 		},
-		[]string{"method", "route", "status"},
+		[]string{"route", "status"}, // Removed method to reduce cardinality
 	)
 
-	// RequestDuration tracks HTTP request latencies
 	RequestDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "http_request_duration_seconds",
 			Help:    "HTTP request latencies in seconds",
-			Buckets: []float64{0.001, 0.01, 0.1, 0.5, 1, 2, 5, 10},
+			Buckets: []float64{0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10},
 		},
-		[]string{"method", "route"},
+		[]string{"route"},
 	)
 
-	// ActiveRequests tracks concurrent requests
 	ActiveRequests = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "http_active_requests",
 			Help: "Number of active HTTP requests",
 		},
-		[]string{"method", "route"},
+		[]string{"route"},
 	)
 
-	// ErrorCounter tracks HTTP errors
 	ErrorCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_request_errors_total",
 			Help: "Total number of HTTP request errors",
 		},
-		[]string{"method", "route", "status_code"},
+		[]string{"route", "status_code"},
 	)
 )
 
 func init() {
-	// Register the metrics with Prometheus
-	prometheus.MustRegister(RequestCounter)
-	prometheus.MustRegister(RequestDuration)
-	prometheus.MustRegister(ActiveRequests)
-	prometheus.MustRegister(ErrorCounter)
+	prometheus.MustRegister(RequestCounter, RequestDuration, ActiveRequests, ErrorCounter)
 }
 
-// Enhanced patterns for better route normalization
+// Complete mapping of all known routes based on your microservices
+var knownRoutes = map[string]string{
+	// Auth service routes
+	"/auth/hash-password":     "/auth/hash-password",
+	"/auth/verify-password":   "/auth/verify-password",
+	"/auth/generate-token":    "/auth/generate-token",
+	"/auth/verify-token":      "/auth/verify-token",
+	"/auth/authorize-by-role": "/auth/authorize-by-role",
+	"/auth/generate-code":     "/auth/generate-code",
+
+	// Catalog service routes
+	"/health":     "/health",
+	"/products":   "/products",
+	"/categories": "/categories",
+
+	// Transactions service routes
+	"/buyer/health":   "/buyer/health",
+	"/buyer/verify":   "/buyer/verify",
+	"/buyer/checkout": "/buyer/checkout",
+	"/buyer/orders":   "/buyer/orders",
+
+	// Users service routes
+	"/users/register":   "/users/register",
+	"/users/login":      "/users/login",
+	"/users/health":     "/users/health",
+	"/users/verifyUser": "/users/verifyUser",
+	"/users/verify":     "/users/verify",
+	"/users/profile":    "/users/profile",
+	"/users/cart":       "/users/cart",
+	"/users/order":      "/users/order",
+}
+
+// Path parameter patterns for normalization
 var (
-	idPattern   = regexp.MustCompile(`/\d+(/|$)`)
-	uuidPattern = regexp.MustCompile(`/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(/|$)`)
-	slugPattern = regexp.MustCompile(`/[a-z0-9_-]+(/|$)`)
+	idPattern         = regexp.MustCompile(`/(\d+|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(/|$)`)
+	productIdPattern  = regexp.MustCompile(`/cart/([^/]+)(/|$)`)
+	orderIdPattern    = regexp.MustCompile(`/order/([^/]+)(/|$)`)
+	categoryIdPattern = regexp.MustCompile(`/categories/([^/]+)(/|$)`)
+	productIdPattern2 = regexp.MustCompile(`/products/([^/]+)(/|$)`)
 )
 
-// NormalizePath replaces common patterns with placeholders to reduce cardinality
+// NormalizePath normalizes the request path to reduce cardinality
 func NormalizePath(path string) string {
-	// Order matters - most specific patterns first
-	path = uuidPattern.ReplaceAllString(path, "/:uuid$1")
-	path = idPattern.ReplaceAllString(path, "/:id$1")
+	// Skip normalizing the metrics endpoint itself
+	if path == "/metrics" {
+		return "/metrics"
+	}
 
-	// Only apply slug normalization to paths with many segments to avoid over-normalization
-	segments := strings.Count(path, "/")
-	if segments > 3 {
-		path = slugPattern.ReplaceAllString(path, "/:slug$1")
+	// Try to match exact known routes first
+	if normalizedPath, exists := knownRoutes[path]; exists {
+		return normalizedPath
+	}
+
+	// Normalize paths with IDs for specific service patterns
+	path = idPattern.ReplaceAllString(path, "/:id$2")
+	path = productIdPattern.ReplaceAllString(path, "/cart/:productId$2")
+	path = orderIdPattern.ReplaceAllString(path, "/order/:id$2")
+	path = categoryIdPattern.ReplaceAllString(path, "/categories/:id$2")
+	path = productIdPattern2.ReplaceAllString(path, "/products/:id$2")
+
+	// Service-specific normalization
+	if strings.HasPrefix(path, "/users/cart/") {
+		return "/users/cart/:productId"
+	}
+	if strings.HasPrefix(path, "/users/order/") {
+		return "/users/order/:id"
+	}
+	if strings.HasPrefix(path, "/buyer/order/") {
+		return "/buyer/order/:id"
+	}
+	if strings.HasPrefix(path, "/products/") {
+		return "/products/:id"
+	}
+	if strings.HasPrefix(path, "/categories/") {
+		return "/categories/:id"
+	}
+
+	// Final check against known route prefixes
+	for knownPath := range knownRoutes {
+		if strings.HasPrefix(path, knownPath+"/") {
+			return knownPath + "/:param"
+		}
 	}
 
 	return path
 }
 
-// PrometheusMiddleware is a Fiber middleware that records request metrics
+// PrometheusMiddleware records request metrics
 func PrometheusMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		start := time.Now()
-		method := c.Method()
-
-		// Store original path before processing
-		originalPath := c.Path()
-
-		// Process request first to ensure route is matched
-		err := c.Next()
-
-		// Now try to get the route pattern after routing has occurred
-		route := c.Route().Path
-
-		// If route is empty or just "/", use a better fallback strategy
-		if route == "" || route == "/" {
-			// For APIs with ID parameters, normalize the path
-			route = NormalizePath(originalPath)
-
-			// If the resulting route is still just "/", use the original path
-			// This ensures we at least see something in the dashboard
-			if route == "/" && originalPath != "/" {
-				route = originalPath
-			}
+		// Skip metrics endpoint completely
+		if c.Path() == "/metrics" {
+			return c.Next()
 		}
+
+		// Get normalized route path
+		route := NormalizePath(c.Path())
+
+		// Record active requests
+		ActiveRequests.WithLabelValues(route).Inc()
+		defer ActiveRequests.WithLabelValues(route).Dec()
+
+		// Time the request execution
+		start := time.Now()
+		err := c.Next()
+		duration := time.Since(start).Seconds()
 
 		// Record request duration
-		duration := time.Since(start).Seconds()
-		RequestDuration.WithLabelValues(method, route).Observe(duration)
+		RequestDuration.WithLabelValues(route).Observe(duration)
 
-		// Get status code
+		// Record request count by status
 		statusCode := c.Response().StatusCode()
 		status := strconv.Itoa(statusCode)
+		RequestCounter.WithLabelValues(route, status).Inc()
 
-		// Record status code and increment request counter
-		RequestCounter.WithLabelValues(method, route, status).Inc()
-
-		// If error occurred, increment error counter
+		// Record errors separately
 		if statusCode >= 400 {
-			ErrorCounter.WithLabelValues(method, route, status).Inc()
+			ErrorCounter.WithLabelValues(route, strconv.Itoa(statusCode)).Inc()
 		}
-
-		// Update active requests counter
-		// Note: We're moving this after processing since we need the route
-		ActiveRequests.WithLabelValues(method, route).Inc()
-		// For demo purposes, decrease it right away
-		// In production, you'd want to track actual concurrent requests differently
-		ActiveRequests.WithLabelValues(method, route).Dec()
 
 		return err
 	}

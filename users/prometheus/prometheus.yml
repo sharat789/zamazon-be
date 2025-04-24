@@ -8,6 +8,21 @@ scrape_configs:
     static_configs:
       - targets: ['host.docker.internal:3000']
 
+  - job_name: 'catalog-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['host.docker.internal:3001'] # Adjust port as needed
+
+  - job_name: 'transactions-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['host.docker.internal:3002'] # Adjust port as needed
+
+  - job_name: 'auth-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['host.docker.internal:8082'] # Adjust port as needed
+
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
