@@ -1,0 +1,6 @@
+prometheus:
+  prometheusSpec:
+    podMonitorSelectorNilUsesHelmValues: true  # Change to true/false as needed
+    serviceMonitorSelectorNilUsesHelmValues: true  # Change to true/false as needed
+    serviceMonitorSelector: {}  # Optional: Add label selectors
+    podMonitorSelector: {}      # Optional: Add label selectors

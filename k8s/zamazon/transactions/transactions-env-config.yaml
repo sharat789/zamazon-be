@@ -13,3 +13,4 @@ data:
   SUCCESS_URL: "http://localhost:4200"
   CANCEL_URL: "http://localhost:4200"
   USER_SERVICE_URL: "http://users-service:80"
+  AUTH_SERVICE_URL: "http://auth-service:80"

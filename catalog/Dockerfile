@@ -5,6 +5,9 @@ WORKDIR /app
 # Copy the catalog service go.mod and go.sum from the repository root’s catalog directory
 COPY catalog/go.mod catalog/go.sum ./catalog/
 
+# Copy the metrics package from the repository root (so that when in /app/users, ../metrics exists)
+COPY metrics ./metrics
+
 # Copy the rest of the catalog service source code
 COPY catalog/ ./catalog/
 

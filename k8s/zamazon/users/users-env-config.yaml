@@ -9,3 +9,4 @@ data:
   APP_SECRET: "zamazon-secret"
   JWT_SECRET: "qhx5shDMjBChXdPrxzFmCr+W09Dz4uPvUGUp66xCrCs="
   CATALOG_URL: "http://catalog-service:80"
+  AUTH_URL: "http://auth-service:80"

@@ -1,0 +1,15 @@
+# prometheus-pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: prometheus-storage
+  namespace: monitoring
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: standard
+  hostPath:
+    path: "/mnt/data/prometheus"

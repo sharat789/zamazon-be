@@ -5,8 +5,8 @@ WORKDIR /app
 # Copy the users service go.mod and go.sum from the repository root’s users directory
 COPY users/go.mod users/go.sum ./users/
 
-# Copy the common package from the repository root (so that when in /app/users, ../common exists)
-COPY common ./common
+# Copy the metrics package from the repository root (so that when in /app/users, ../metrics exists)
+COPY metrics ./metrics
 
 # Copy the rest of the users service source code
 COPY users/ ./users/

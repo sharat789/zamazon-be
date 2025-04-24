@@ -3,10 +3,17 @@ kind: Service
 metadata:
   name: transactions-service
   namespace: zamazon
+  labels:
+    app: transactions
 spec:
   selector:
     app: transactions
   ports:
-    - protocol: TCP
+    - name: http
+      protocol: TCP
       port: 80
+      targetPort: 8080
+    - name: metrics  # Add this
+      protocol: TCP
+      port: 8080
       targetPort: 8080

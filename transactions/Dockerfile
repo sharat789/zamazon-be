@@ -5,8 +5,8 @@ WORKDIR /app
 # Copy the transactions service go.mod and go.sum from the repository root’s transactions directory
 COPY transactions/go.mod transactions/go.sum ./transactions/
 
-# Copy the common package from the repository root (so that when in /app/transactions, ../common exists)
-COPY common ./common
+# Copy the metrics package from the repository root (so that when in /app/users, ../metrics exists)
+COPY metrics ./metrics
 
 # Copy the rest of the transactions service source code
 COPY transactions/ ./transactions/

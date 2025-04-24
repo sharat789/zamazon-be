@@ -3,10 +3,17 @@ kind: Service
 metadata:
   name: catalog-service
   namespace: zamazon
+  labels:
+    app: catalog
 spec:
   selector:
     app: catalog
   ports:
-    - protocol: TCP
+    - name: http
+      protocol: TCP
       port: 80
+      targetPort: 8080
+    - name: metrics  # Add this
+      protocol: TCP
+      port: 8080
       targetPort: 8080
