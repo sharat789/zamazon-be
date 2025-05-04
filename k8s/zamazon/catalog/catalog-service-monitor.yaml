@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: catalog-service-monitor
+  namespace: monitoring  # Deploy in same namespace as Prometheus
+  labels:
+    release: prometheus-stack  # Match Prometheus' default selector
+spec:
+  selector:
+    matchLabels:
+      app: catalog  # Must match users-service labels
+  namespaceSelector:
+    matchNames:
+      - zamazon  # Where your service lives
+  endpoints:
+    - port: metrics  # Must match Service port name
+      interval: 15s
+      path: /metrics

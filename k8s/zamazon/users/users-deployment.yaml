@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: users-deployment
+  namespace: zamazon
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: users
+  template:
+    metadata:
+      labels:
+        app: users
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: users
+          image: sharat789/zamazon-be-ms-users:latest
+          ports:
+            - containerPort: 8080
+              name: metrics
+          envFrom:
+            - configMapRef:
+                name: users-env-config

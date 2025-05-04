@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-scrape-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    scrape_configs:
+      - job_name: 'zamazon-microservices'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - zamazon
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
+            action: keep
+            regex: metrics
