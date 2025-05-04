@@ -4,7 +4,7 @@ metadata:
   name: users-deployment
   namespace: zamazon
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: users
@@ -14,8 +14,8 @@ spec:
         app: users
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "8080"
-        prometheus.io/path: "/metrics"
+        prometheus.io/port:   "8080"
+        prometheus.io/path:   "/metrics"
     spec:
       containers:
         - name: users
@@ -26,3 +26,10 @@ spec:
           envFrom:
             - configMapRef:
                 name: users-env-config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"

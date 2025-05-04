@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-shared-database
+  namespace: zamazon
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-shared-database
+  template:
+    metadata:
+      labels:
+        app: postgres-shared-database
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:14-alpine
+          env:
+            - name: POSTGRES_USER
+              value: "root"
+            - name: POSTGRES_PASSWORD
+              value: "root"
+            - name: POSTGRES_DB
+              value: "zamazon-db-shared"
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-shared-database-pvc
